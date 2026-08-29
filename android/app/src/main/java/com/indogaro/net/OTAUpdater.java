@@ -8,8 +8,10 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,28 +36,22 @@ import java.net.URL;
 public class OTAUpdater {
     private Activity activity;
     private static final String GITHUB_API = "https://api.github.com/repos/contacindogaronet-ops/prj2200/releases/latest";
-    private static final long AUTO_CHECK_COOLDOWN_MS = 4 * 60 * 60 * 1000; // Jeda 4 Jam untuk pengecekan otomatis
+    private static final long AUTO_CHECK_COOLDOWN_MS = 4 * 60 * 60 * 1000; 
 
     public OTAUpdater(Activity activity) {
         this.activity = activity;
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Parameter isManual untuk membedakan Auto-Check vs Tombol Check
     public void check(boolean isManual) {
         SharedPreferences prefs = activity.getSharedPreferences("DaemonSettings", Context.MODE_PRIVATE);
         long lastCheck = prefs.getLong("LAST_OTA_CHECK", 0);
         long now = System.currentTimeMillis();
 
-        // 🔴 ANTI RATE-LIMIT: Jika auto-check dan belum 4 jam, batalkan diam-diam.
-        if (!isManual && (now - lastCheck < AUTO_CHECK_COOLDOWN_MS)) {
-            return;
-        }
+        if (!isManual && (now - lastCheck < AUTO_CHECK_COOLDOWN_MS)) return;
 
         new Thread(() -> {
             try {
-                // Rekam waktu pengecekan terakhir jika berhasil memanggil API
                 prefs.edit().putLong("LAST_OTA_CHECK", now).apply();
-
                 String currentVersion = "v" + activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_API).openConnection();
@@ -77,22 +73,17 @@ public class OTAUpdater {
                 JSONArray assets = json.getJSONArray("assets");
                 
                 if (assets.length() == 0) throw new Exception("Tidak ada file APK pada release ini.");
-                
                 String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
 
                 new Handler(Looper.getMainLooper()).post(() -> {
                     boolean isUpdateAvailable = !currentVersion.equals(latestVersion);
-                    
                     if (isUpdateAvailable) {
-                        // Jika ada update, selalu munculkan panel (baik manual maupun otomatis)
                         showBottomSheet(true, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
                     } else if (isManual) {
-                        // Jika tidak ada update, HANYA munculkan panel jika user memencet tombol manual
                         showBottomSheet(false, currentVersion, latestVersion, changelog, publishDate, null);
                     }
                 });
             } catch (Exception e) {
-                // Jangan tampilkan error jika itu pengecekan otomatis
                 if (isManual) {
                     new Handler(Looper.getMainLooper()).post(() -> 
                         showBottomSheet(false, "ERROR", "ERROR", e.getMessage(), "--", null)
@@ -218,7 +209,18 @@ public class OTAUpdater {
         }).start();
     }
 
+    // 🔴 KUNCI ARSITEKTUR: Validasi Izin Instalasi OS (Android 8.0+)
     private void installApk(File apkFile) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!activity.getPackageManager().canRequestPackageInstalls()) {
+                // Lempar User ke Layar Pengaturan untuk Minta Izin
+                Intent permIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+                permIntent.setData(Uri.parse("package:" + activity.getPackageName()));
+                activity.startActivity(permIntent);
+                return;
+            }
+        }
+        
         Intent intent = new Intent(Intent.ACTION_VIEW);
         Uri apkUri = FileProvider.getUriForFile(activity, "com.indogaro.net.provider", apkFile);
         intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
