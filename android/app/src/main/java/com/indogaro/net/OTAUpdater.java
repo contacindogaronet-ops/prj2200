@@ -26,7 +26,6 @@ import java.net.URL;
 
 public class OTAUpdater {
     private Activity activity;
-    private static final String CURRENT_VERSION = "v3.0"; 
     private static final String GITHUB_API = "https://api.github.com/repos/contacindogaronet-ops/prj2200/releases/latest";
 
     public OTAUpdater(Activity activity) {
@@ -36,6 +35,9 @@ public class OTAUpdater {
     public void check() {
         new Thread(() -> {
             try {
+                // 🔴 KUNCI ARSITEKTUR: Membaca versi dinamis dari build.gradle (PackageManager)
+                String currentVersion = "v" + activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
+
                 HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_API).openConnection();
                 conn.setRequestProperty("User-Agent", "Indogo-OTA-Engine");
                 conn.setConnectTimeout(10000);
@@ -62,12 +64,12 @@ public class OTAUpdater {
                 String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
 
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    if (!CURRENT_VERSION.equals(latestVersion)) {
+                    if (!currentVersion.equals(latestVersion)) {
                         showUpdateDialog(latestVersion, changelog, downloadUrl);
                     } else {
                         new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                             .setTitle("Sistem Optimal")
-                            .setMessage("Indogo sudah berada di versi terbaru (" + CURRENT_VERSION + ").")
+                            .setMessage("Indogo sudah berada di versi terbaru (" + currentVersion + ").")
                             .setPositiveButton("OK", null).show();
                     }
                 });
@@ -110,19 +112,17 @@ public class OTAUpdater {
         dialog.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Penanganan Ekstraksi Redirect Lintas Domain
     private void downloadAndInstall(String urlString, ProgressBar progressBar, TextView tvProgressText, AlertDialog dialog) {
         new Thread(() -> {
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setInstanceFollowRedirects(false); // Kita akan lacak manual
+                conn.setInstanceFollowRedirects(false); 
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(15000);
                 conn.connect();
 
                 int status = conn.getResponseCode();
-                // Jika GitHub mengalihkan ke server S3 AWS
                 if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
                     String redirectUrl = conn.getHeaderField("Location");
                     url = new URL(redirectUrl);
@@ -142,7 +142,6 @@ public class OTAUpdater {
                 if (!downloadDir.exists()) downloadDir.mkdirs();
                 File outputFile = new File(downloadDir, "indogo-update.apk");
                 
-                // Hapus file lama jika ada agar tidak korup
                 if (outputFile.exists()) outputFile.delete(); 
 
                 InputStream input = conn.getInputStream();
