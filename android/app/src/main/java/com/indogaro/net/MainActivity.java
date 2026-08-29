@@ -87,6 +87,9 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences("ClusterMatrix", MODE_PRIVATE);
         settingsPrefs = getSharedPreferences("DaemonSettings", MODE_PRIVATE);
         loadClusterList();
+        
+        // 🔴 KUNCI ARSITEKTUR: Eksekusi Ghost Polling OTA saat aplikasi dibuka
+        new OTAUpdater(this).check(false);
 
         viewHome = findViewById(R.id.viewHome);
         viewClusters = findViewById(R.id.viewClusters);
@@ -141,7 +144,7 @@ public class MainActivity extends Activity {
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
         
         Button btnCheckUpdate = findViewById(R.id.btnCheckUpdate);
-        btnCheckUpdate.setOnClickListener(v -> new OTAUpdater(this).check());
+        btnCheckUpdate.setOnClickListener(v -> new OTAUpdater(this).check(true));
 
         btnPanic.setOnClickListener(v -> {
             for (String cluster : clusterList) {
