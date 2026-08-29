@@ -82,7 +82,7 @@ public class IndogoVpnService extends VpnService {
             final int finalFd = fd;
             new Thread(() -> {
                 try {
-                    hev.socks5.tunnel.Tunnel.TunnelMain(finalFd, configFile.getAbsolutePath());
+                    hev.socks5.tunnel.Tunnel.TunnelMain(configFile.getAbsolutePath(), finalFd);
                 } catch (Exception e) {
                     broadcastLog(cluster, "🛑 JNI Crash: " + e.getMessage());
                 }

@@ -4,6 +4,7 @@ public class Tunnel {
     static { 
         System.loadLibrary("hev-socks5-tunnel"); 
     }
-    public native static void TunnelMain(int fd, String configPath);
+    // 🔴 KOREKSI ARSITEKTUR MUTLAK: String (Path) dulu, baru int (FD)
+    public native static void TunnelMain(String configPath, int tunFd);
     public native static void TunnelQuit();
 }
