@@ -4,12 +4,11 @@
     
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UNIVERSAL SETTINGS" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="24dp"/>
     
-    <Switch android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart on Crash" android:textColor="#AAAAAA" android:layout_marginBottom="16dp"/>
-    <Switch android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aggressive RAM Allocation" android:textColor="#AAAAAA" android:layout_marginBottom="24dp"/>
+    <Switch android:id="@+id/switchAutoRestart" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart on Crash" android:textColor="#AAAAAA" android:layout_marginBottom="16dp"/>
+    <Switch android:id="@+id/switchAggressiveRam" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aggressive CPU/RAM Allocation" android:textColor="#AAAAAA" android:layout_marginBottom="24dp"/>
     
-    <!-- 🔴 KUNCI ARSITEKTUR: Injeksi Sistem File -->
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="FILE SYSTEM INJECTION" android:textColor="#F8FAFC" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="8dp"/>
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Suntikkan file .txt ke dalam folder ./blocklists/ yang berdampingan dengan biner eksekusi Anda." android:textColor="#94A3B8" android:textSize="12sp" android:layout_marginBottom="16dp"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Suntikkan file .txt (Rules/Config) ke dalam folder ./blocklists/ yang berdampingan dengan biner eksekusi Anda." android:textColor="#94A3B8" android:textSize="12sp" android:layout_marginBottom="16dp"/>
     
     <Button android:id="@+id/btnInjectRules" android:layout_width="match_parent" android:layout_height="60dp" android:text="📁 UPLOAD TO ./BLOCKLISTS/" android:backgroundTint="#0F172A" android:textColor="#38BDF8" android:textStyle="bold"/>
     

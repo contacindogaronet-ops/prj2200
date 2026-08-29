@@ -23,6 +23,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,6 +42,7 @@ public class MainActivity extends Activity {
     private TextView navHome, navClusters, navSettings;
     private LinearLayout clusterContainer;
     private Button btnAddCluster, btnInjectRules;
+    private Switch switchAutoRestart, switchAggressiveRam;
     
     private TextView tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
     private long lastRxBytes = 0, lastTxBytes = 0;
@@ -48,6 +50,7 @@ public class MainActivity extends Activity {
     private Runnable telemetryRunnable;
     
     private SharedPreferences prefs;
+    private SharedPreferences settingsPrefs;
     private List<String> clusterList = new ArrayList<>();
     private Map<String, StringBuilder> logsMap = new HashMap<>(); 
     
@@ -77,6 +80,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         
         prefs = getSharedPreferences("ClusterMatrix", MODE_PRIVATE);
+        settingsPrefs = getSharedPreferences("DaemonSettings", MODE_PRIVATE);
         loadClusterList();
 
         viewHome = findViewById(R.id.viewHome);
@@ -90,6 +94,17 @@ public class MainActivity extends Activity {
         clusterContainer = findViewById(R.id.clusterContainer);
         btnAddCluster = findViewById(R.id.btnAddCluster);
         btnInjectRules = findViewById(R.id.btnInjectRules);
+        
+        // 🔴 Bind Settings Switches
+        switchAutoRestart = findViewById(R.id.switchAutoRestart);
+        switchAggressiveRam = findViewById(R.id.switchAggressiveRam);
+
+        // Load Settings State
+        switchAutoRestart.setChecked(settingsPrefs.getBoolean("AUTO_RESTART", true)); // Default On
+        switchAggressiveRam.setChecked(settingsPrefs.getBoolean("AGGRESSIVE_RAM", false)); // Default Off
+        
+        switchAutoRestart.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("AUTO_RESTART", isChecked).apply());
+        switchAggressiveRam.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("AGGRESSIVE_RAM", isChecked).apply());
 
         tvTemp = findViewById(R.id.tvTemp);
         tvRx = findViewById(R.id.tvRx);
@@ -111,7 +126,6 @@ public class MainActivity extends Activity {
             startActivityForResult(intent, 2);
         });
 
-        // 🔴 KUNCI ARSITEKTUR: Meminta izin Storage saat aplikasi dibuka
         if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
         }
@@ -314,7 +328,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Terminal Interaktif (Interactive Cluster Shell)
     private void openInteractiveShellDialog(String clusterName) {
         activeLogCluster = clusterName;
         AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_Black_NoTitleBar_Fullscreen);
@@ -325,8 +338,7 @@ public class MainActivity extends Activity {
         mainLayout.setPadding(24, 24, 24, 24);
 
         ScrollView scroll = new ScrollView(this);
-        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1.0f);
         scroll.setLayoutParams(scrollParams);
         
         tvActiveLog = new TextView(this);
@@ -341,7 +353,6 @@ public class MainActivity extends Activity {
         }
         scroll.addView(tvActiveLog);
 
-        // Baris Input Shell
         LinearLayout inputLayout = new LinearLayout(this);
         inputLayout.setOrientation(LinearLayout.HORIZONTAL);
         inputLayout.setPadding(0, 16, 0, 0);
@@ -371,12 +382,7 @@ public class MainActivity extends Activity {
         btnClose.setText("X");
         btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#7F1D1D")));
         btnClose.setTextColor(Color.WHITE);
-        btnClose.setOnClickListener(v -> {
-            activeLogCluster = ""; 
-            tvActiveLog = null;
-            builder.create().dismiss(); // Akan di-handle oleh show() nanti
-        });
-
+        
         inputLayout.addView(inputCmd);
         inputLayout.addView(btnSend);
         inputLayout.addView(btnClose);
@@ -396,7 +402,6 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Pengeksekusi Perintah Linux Mentah
     private void executeRawShell(String clusterName, String cmd) {
         String logHeader = "\n\n" + clusterName + "@daemon:~$ " + cmd;
         tvActiveLog.append(logHeader);
@@ -405,7 +410,6 @@ public class MainActivity extends Activity {
 
         new Thread(() -> {
             try {
-                // Jalankan bash sh di direktori privat aplikasi
                 ProcessBuilder pb = new ProcessBuilder("sh", "-c", cmd);
                 pb.directory(getFilesDir());
                 pb.redirectErrorStream(true);
@@ -426,7 +430,6 @@ public class MainActivity extends Activity {
             } catch (Exception e) {
                 runOnUiThread(() -> tvActiveLog.append("\n[Shell Error] " + e.getMessage()));
             }
-            // Auto scroll ke bawah (simulasi terminal sungguhan)
             runOnUiThread(() -> {
                 if (tvActiveLog != null) {
                     ScrollView sv = (ScrollView) tvActiveLog.getParent();
