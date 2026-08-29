@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:background="@drawable/bg_bottom_sheet" android:padding="24dp">
+    
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+        <TextView android:id="@+id/tvUpdateIcon" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🔄" android:textSize="24sp" android:layout_marginRight="12dp"/>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/tvUpdateTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PEMBARUAN TERSANGKUT" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:letterSpacing="0.05"/>
+            <TextView android:id="@+id/tvUpdateSubtitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Indogo Daemon" android:textColor="#3B82F6" android:textSize="12sp" android:textStyle="bold"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#09090B" android:padding="16dp" android:layout_marginBottom="16dp">
+        <TextView android:id="@+id/tvVersionInfo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Versi: --" android:textColor="#8E8E93" android:textSize="12sp" android:layout_marginBottom="4dp"/>
+        <TextView android:id="@+id/tvDateInfo" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tanggal: --" android:textColor="#8E8E93" android:textSize="12sp" android:layout_marginBottom="4dp"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pengembang: com.indogaro.net" android:textColor="#8E8E93" android:textSize="12sp"/>
+    </LinearLayout>
+    
+    <ScrollView android:id="@+id/scrollChangelog" android:layout_width="match_parent" android:layout_height="120dp" android:layout_marginBottom="16dp">
+        <TextView android:id="@+id/tvUpdateChangelog" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Loading..." android:textColor="#D1D5DB" android:textSize="12sp" android:lineSpacingExtra="4dp"/>
+    </ScrollView>
+
+    <LinearLayout android:id="@+id/layoutProgress" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:layout_marginBottom="16dp">
+        <TextView android:id="@+id/tvProgressText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mengunduh: 0%" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+        <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="6dp" android:progressDrawable="@drawable/custom_progress_bar" android:max="100" android:progress="0"/>
+    </LinearLayout>
+
+    <Button android:id="@+id/btnUpdateAction" android:layout_width="match_parent" android:layout_height="55dp" android:text="TUTUP" android:background="@drawable/bg_btn_primary" android:textColor="#FFFFFF" android:textStyle="bold" android:letterSpacing="0.05"/>
+    
+</LinearLayout>

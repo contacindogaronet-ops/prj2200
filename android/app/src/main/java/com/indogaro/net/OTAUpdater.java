@@ -1,17 +1,22 @@
 package com.indogaro.net;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.core.content.FileProvider;
 import org.json.JSONArray;
@@ -35,16 +40,13 @@ public class OTAUpdater {
     public void check() {
         new Thread(() -> {
             try {
-                // 🔴 KUNCI ARSITEKTUR: Membaca versi dinamis dari build.gradle (PackageManager)
                 String currentVersion = "v" + activity.getPackageManager().getPackageInfo(activity.getPackageName(), 0).versionName;
 
                 HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_API).openConnection();
                 conn.setRequestProperty("User-Agent", "Indogo-OTA-Engine");
                 conn.setConnectTimeout(10000);
                 
-                if (conn.getResponseCode() != 200) {
-                    throw new Exception("GitHub API menolak koneksi (Rate Limit / Not Found)");
-                }
+                if (conn.getResponseCode() != 200) throw new Exception("GitHub API menolak koneksi.");
                 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder response = new StringBuilder();
@@ -55,64 +57,83 @@ public class OTAUpdater {
                 JSONObject json = new JSONObject(response.toString());
                 String latestVersion = json.getString("tag_name");
                 String changelog = json.getString("body");
+                String publishDate = json.getString("published_at").split("T")[0]; // Ambil YYYY-MM-DD
                 JSONArray assets = json.getJSONArray("assets");
                 
-                if (assets.length() == 0) {
-                    throw new Exception("Release ditemukan, tetapi tidak ada file APK di dalamnya.");
-                }
+                if (assets.length() == 0) throw new Exception("Tidak ada file APK pada release ini.");
                 
                 String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
 
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    if (!currentVersion.equals(latestVersion)) {
-                        showUpdateDialog(latestVersion, changelog, downloadUrl);
-                    } else {
-                        new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                            .setTitle("Sistem Optimal")
-                            .setMessage("Indogo sudah berada di versi terbaru (" + currentVersion + ").")
-                            .setPositiveButton("OK", null).show();
-                    }
+                    boolean isUpdateAvailable = !currentVersion.equals(latestVersion);
+                    showBottomSheet(isUpdateAvailable, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
                 });
             } catch (Exception e) {
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setTitle("OTA Engine Error")
-                        .setMessage(e.getMessage())
-                        .setPositiveButton("OK", null).show()
+                    showBottomSheet(false, "ERROR", "ERROR", e.getMessage(), "--", null)
                 );
             }
         }).start();
     }
 
-    private void showUpdateDialog(String version, String changelog, String downloadUrl) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert);
-        View view = LayoutInflater.from(activity).inflate(R.layout.dialog_update, null);
-        builder.setView(view);
-        AlertDialog dialog = builder.create();
+    // 🔴 KUNCI ARSITEKTUR: Custom Bottom Sheet Dialog ala Telegram
+    private void showBottomSheet(boolean isUpdateAvailable, String currentVersion, String latestVersion, String changelog, String date, String downloadUrl) {
+        Dialog bottomDialog = new Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
+        View view = LayoutInflater.from(activity).inflate(R.layout.dialog_update_bottom, null);
+        bottomDialog.setContentView(view);
+        
+        Window window = bottomDialog.getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.BOTTOM);
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
 
-        TextView tvVersion = view.findViewById(R.id.tvUpdateVersion);
+        TextView tvIcon = view.findViewById(R.id.tvUpdateIcon);
+        TextView tvTitle = view.findViewById(R.id.tvUpdateTitle);
+        TextView tvVersion = view.findViewById(R.id.tvVersionInfo);
+        TextView tvDate = view.findViewById(R.id.tvDateInfo);
         TextView tvChangelog = view.findViewById(R.id.tvUpdateChangelog);
-        TextView tvProgressText = view.findViewById(R.id.tvProgressText);
-        ProgressBar progressBar = view.findViewById(R.id.progressBar);
+        ScrollView scrollChangelog = view.findViewById(R.id.scrollChangelog);
         LinearLayout layoutProgress = view.findViewById(R.id.layoutProgress);
-        Button btnCancel = view.findViewById(R.id.btnUpdateCancel);
+        ProgressBar progressBar = view.findViewById(R.id.progressBar);
+        TextView tvProgressText = view.findViewById(R.id.tvProgressText);
         Button btnAction = view.findViewById(R.id.btnUpdateAction);
 
-        tvVersion.setText(version);
-        tvChangelog.setText(changelog);
+        tvDate.setText("Tanggal Rilis: " + date);
 
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-        btnAction.setOnClickListener(v -> {
-            btnAction.setEnabled(false);
-            btnCancel.setEnabled(false);
-            layoutProgress.setVisibility(View.VISIBLE);
-            downloadAndInstall(downloadUrl, progressBar, tvProgressText, dialog);
-        });
+        if (isUpdateAvailable) {
+            tvIcon.setText("🚀");
+            tvTitle.setText("PEMBARUAN TERSEDIA");
+            tvTitle.setTextColor(Color.parseColor("#3B82F6"));
+            tvVersion.setText("Versi Saat Ini: " + currentVersion + "\nVersi Terbaru: " + latestVersion);
+            tvChangelog.setText(changelog);
+            btnAction.setText("UNDUH & INSTALL");
+            btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#3B82F6")));
+            
+            btnAction.setOnClickListener(v -> {
+                btnAction.setEnabled(false);
+                btnAction.setText("MEMPROSES...");
+                layoutProgress.setVisibility(View.VISIBLE);
+                downloadAndInstall(downloadUrl, progressBar, tvProgressText, bottomDialog);
+            });
+        } else {
+            tvIcon.setText("✅");
+            tvTitle.setText("SISTEM OPTIMAL");
+            tvTitle.setTextColor(Color.parseColor("#34C759"));
+            tvVersion.setText("Versi Saat Ini: " + currentVersion + " (Mutakhir)");
+            scrollChangelog.setVisibility(View.GONE);
+            btnAction.setText("TUTUP");
+            btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1C1C1E")));
+            btnAction.setTextColor(Color.parseColor("#8E8E93"));
+            
+            btnAction.setOnClickListener(v -> bottomDialog.dismiss());
+        }
 
-        dialog.show();
+        bottomDialog.show();
     }
 
-    private void downloadAndInstall(String urlString, ProgressBar progressBar, TextView tvProgressText, AlertDialog dialog) {
+    private void downloadAndInstall(String urlString, ProgressBar progressBar, TextView tvProgressText, Dialog dialog) {
         new Thread(() -> {
             try {
                 URL url = new URL(urlString);
@@ -132,10 +153,7 @@ public class OTAUpdater {
                     conn.connect();
                 }
 
-                if (conn.getResponseCode() != 200) {
-                    throw new Exception("Gagal terhubung ke server unduhan.");
-                }
-
+                if (conn.getResponseCode() != 200) throw new Exception("Gagal terhubung ke server unduhan.");
                 int fileLength = conn.getContentLength();
 
                 File downloadDir = new File(activity.getExternalFilesDir(null), "Download");
@@ -159,7 +177,7 @@ public class OTAUpdater {
                         int progress = (int) (total * 100 / fileLength);
                         handler.post(() -> {
                             progressBar.setProgress(progress);
-                            tvProgressText.setText("Downloading: " + progress + "%");
+                            tvProgressText.setText("Mengunduh: " + progress + "%");
                         });
                     }
                 }
@@ -170,7 +188,7 @@ public class OTAUpdater {
                     installApk(outputFile);
                 });
             } catch (Exception e) {
-                new Handler(Looper.getMainLooper()).post(() -> tvProgressText.setText("Failed: " + e.getMessage()));
+                new Handler(Looper.getMainLooper()).post(() -> tvProgressText.setText("Gagal: " + e.getMessage()));
             }
         }).start();
     }
