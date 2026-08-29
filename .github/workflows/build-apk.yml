@@ -27,12 +27,21 @@ jobs:
       with:
         gradle-version: '8.4'
 
+    # 🔴 KUNCI ARSITEKTUR: Pencurian JNI Library dari Upstream secara Otomatis
+    - name: 📦 Inject hev-socks5-tunnel (L3 TCP/UDP Engine)
+      run: |
+        mkdir -p android/app/src/main/jniLibs/arm64-v8a
+        wget -q https://github.com/heiher/hev-socks5-tunnel/releases/download/2.7.7/hev-socks5-tunnel-android-arm64.apk -O tun2socks.apk
+        unzip -q tun2socks.apk lib/arm64-v8a/libhev-socks5-tunnel.so
+        mv lib/arm64-v8a/libhev-socks5-tunnel.so android/app/src/main/jniLibs/arm64-v8a/
+        rm tun2socks.apk
+
     - name: 🔨 Kompilasi Mesin Indogo (APK)
       run: |
         cd android
         gradle assembleDebug
 
-    - name: 📦 Distribusi Artefak (Untuk Push ke Main)
+    - name: 📦 Distribusi Artefak
       if: startsWith(github.ref, 'refs/heads/main')
       uses: actions/upload-artifact@v4
       with:
@@ -43,13 +52,13 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/')
       run: mv android/app/build/outputs/apk/debug/app-debug.apk indogo-update.apk
 
-    - name: 🚀 Otomatisasi GitHub Release (Untuk Push Tag v*)
+    - name: 🚀 Otomatisasi GitHub Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
         files: indogo-update.apk
         name: Indogo OTA Release ${{ github.ref_name }}
-        body: "Automated OTA update build for Indogo Daemon."
+        body: "Enterprise L3 Tun2Socks Update (Full UDP/TCP/DoH Support)"
         draft: false
         prerelease: false
       env:
