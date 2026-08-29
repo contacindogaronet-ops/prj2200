@@ -9,7 +9,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.TrafficStats;
-import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -37,7 +36,7 @@ public class MainActivity extends Activity {
     private View viewHome, viewClusters, viewSettings;
     private TextView navHome, navClusters, navSettings;
     private LinearLayout clusterContainer;
-    private Button btnAddCluster;
+    private Button btnAddCluster, btnInjectRules;
     
     // Telemetry UI
     private TextView tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
@@ -52,6 +51,7 @@ public class MainActivity extends Activity {
     
     private String currentInjectCluster = "";
     private String activeLogCluster = "";
+    private String targetRuleFilename = ""; // Variabel penampung nama file saat upload
     private TextView tvActiveLog = null; 
 
     private final BroadcastReceiver logReceiver = new BroadcastReceiver() {
@@ -88,6 +88,7 @@ public class MainActivity extends Activity {
         
         clusterContainer = findViewById(R.id.clusterContainer);
         btnAddCluster = findViewById(R.id.btnAddCluster);
+        btnInjectRules = findViewById(R.id.btnInjectRules);
 
         // Bind Telemetry UI
         tvTemp = findViewById(R.id.tvTemp);
@@ -104,6 +105,9 @@ public class MainActivity extends Activity {
         startTelemetryEngine();
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
+        
+        // 🔴 KUNCI ARSITEKTUR: Pemicu Upload Rules
+        btnInjectRules.setOnClickListener(v -> promptRuleFilename());
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(logReceiver, new IntentFilter("DAEMON_LOG"), Context.RECEIVER_EXPORTED);
@@ -112,13 +116,30 @@ public class MainActivity extends Activity {
         }
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Mesin Telemetri Real-Time & Ping Asinkron
+    private void promptRuleFilename() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Nama File Target");
+        builder.setMessage("Biner Anda mencari file secara spesifik. Simpan sebagai apa di dalam ./blocklists/ ?");
+        final EditText input = new EditText(this);
+        input.setText("adguarddns.txt");
+        builder.setView(input);
+        builder.setPositiveButton("PILIH FILE", (dialog, which) -> {
+            targetRuleFilename = input.getText().toString().trim();
+            if (!targetRuleFilename.isEmpty()) {
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("*/*");
+                startActivityForResult(intent, 2); // Request Code 2 untuk Rules
+            }
+        });
+        builder.setNegativeButton("BATAL", null);
+        builder.show();
+    }
+
     private void startTelemetryEngine() {
         telemetryRunnable = new Runnable() {
             @Override
             public void run() {
                 if (viewHome.getVisibility() == View.VISIBLE) {
-                    // Kalkulasi Network Bandwidth (1 detik)
                     long currentRx = TrafficStats.getTotalRxBytes();
                     long currentTx = TrafficStats.getTotalTxBytes();
                     tvRx.setText(formatSpeed(currentRx - lastRxBytes));
@@ -126,17 +147,14 @@ public class MainActivity extends Activity {
                     lastRxBytes = currentRx;
                     lastTxBytes = currentTx;
 
-                    // Sensor Suhu Baterai
                     Intent intent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
                     if (intent != null) {
                         float temp = ((float) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)) / 10;
                         tvTemp.setText(temp + " °C");
                     }
-
-                    // Eksekusi Latensi Ping (Thread terpisah)
                     executePingMetrics();
                 }
-                telemetryHandler.postDelayed(this, 1000); // Polling 1 Detik
+                telemetryHandler.postDelayed(this, 1000);
             }
         };
         telemetryHandler.post(telemetryRunnable);
@@ -187,7 +205,6 @@ public class MainActivity extends Activity {
         viewClusters.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
         viewSettings.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
 
-        // Enterprise Nav Color (Sky Blue vs Slate 400)
         navHome.setTextColor(Color.parseColor(index == 0 ? "#38BDF8" : "#94A3B8"));
         navClusters.setTextColor(Color.parseColor(index == 1 ? "#38BDF8" : "#94A3B8"));
         navSettings.setTextColor(Color.parseColor(index == 2 ? "#38BDF8" : "#94A3B8"));
@@ -196,7 +213,6 @@ public class MainActivity extends Activity {
     private void loadClusterList() {
         String saved = prefs.getString("CLUSTER_LIST", "");
         if (!saved.isEmpty()) clusterList = new ArrayList<>(Arrays.asList(saved.split(",")));
-        else { clusterList.add("ALPHA"); saveClusterList(); }
     }
 
     private void saveClusterList() {
@@ -234,17 +250,39 @@ public class MainActivity extends Activity {
             Button btnStart = card.findViewById(R.id.btnClusterStart);
             Button btnStop = card.findViewById(R.id.btnClusterStop);
             Button btnLogs = card.findViewById(R.id.btnClusterLogs);
+            Button btnDelete = card.findViewById(R.id.btnClusterDelete);
 
             tvName.setText(clusterName);
             String bins = prefs.getString(clusterName, "");
             int count = bins.isEmpty() ? 0 : bins.split(",").length;
             tvStatus.setText(count + " Binaries Injected");
 
+            // 🔴 KUNCI ARSITEKTUR: Logika Penghapusan Klaster
+            btnDelete.setOnClickListener(v -> {
+                new AlertDialog.Builder(this)
+                    .setTitle("Pemusnahan Klaster")
+                    .setMessage("Hentikan dan hapus klaster " + clusterName + " secara permanen?")
+                    .setPositiveButton("HAPUS", (dialog, which) -> {
+                        Intent intent = new Intent(this, DaemonService.class);
+                        intent.setAction("STOP_CLUSTER");
+                        intent.putExtra("CLUSTER", clusterName);
+                        startService(intent);
+                        
+                        clusterList.remove(clusterName);
+                        saveClusterList();
+                        prefs.edit().remove(clusterName).apply();
+                        logsMap.remove(clusterName);
+                        renderDynamicClusters();
+                    })
+                    .setNegativeButton("BATAL", null)
+                    .show();
+            });
+
             btnInject.setOnClickListener(v -> {
                 currentInjectCluster = clusterName;
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                 intent.setType("*/*");
-                startActivityForResult(intent, 1);
+                startActivityForResult(intent, 1); // Request Code 1 untuk Biner
             });
 
             btnStart.setOnClickListener(v -> {
@@ -277,10 +315,10 @@ public class MainActivity extends Activity {
         
         ScrollView scroll = new ScrollView(this);
         scroll.setPadding(24, 24, 24, 24);
-        scroll.setBackgroundColor(Color.parseColor("#0F172A")); // Slate 900
+        scroll.setBackgroundColor(Color.parseColor("#0F172A")); 
         
         tvActiveLog = new TextView(this);
-        tvActiveLog.setTextColor(Color.parseColor("#4ADE80")); // Terminal Green
+        tvActiveLog.setTextColor(Color.parseColor("#4ADE80")); 
         tvActiveLog.setTextSize(12f);
         tvActiveLog.setTypeface(android.graphics.Typeface.MONOSPACE);
         
@@ -295,23 +333,49 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == 1 && resultCode == RESULT_OK && data != null) {
-            try {
-                String bins = prefs.getString(currentInjectCluster, "");
-                String binName = currentInjectCluster.toLowerCase() + "_bin_" + System.currentTimeMillis();
-                File destFile = new File(getFilesDir(), binName);
+        if (resultCode == RESULT_OK && data != null) {
+            // Logika Balasan Injeksi Biner
+            if (requestCode == 1) {
+                try {
+                    String bins = prefs.getString(currentInjectCluster, "");
+                    String binName = currentInjectCluster.toLowerCase() + "_bin_" + System.currentTimeMillis();
+                    File destFile = new File(getFilesDir(), binName);
 
-                InputStream in = getContentResolver().openInputStream(data.getData());
-                FileOutputStream out = new FileOutputStream(destFile);
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-                in.close(); out.close();
+                    InputStream in = getContentResolver().openInputStream(data.getData());
+                    FileOutputStream out = new FileOutputStream(destFile);
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                    in.close(); out.close();
 
-                String newBins = bins.isEmpty() ? binName : bins + "," + binName;
-                prefs.edit().putString(currentInjectCluster, newBins).apply();
-                renderDynamicClusters(); 
-            } catch (Exception e) {}
+                    String newBins = bins.isEmpty() ? binName : bins + "," + binName;
+                    prefs.edit().putString(currentInjectCluster, newBins).apply();
+                    renderDynamicClusters(); 
+                } catch (Exception e) {}
+            } 
+            // 🔴 KUNCI ARSITEKTUR: Logika Balasan Injeksi Rules
+            else if (requestCode == 2) {
+                try {
+                    File blocklistsDir = new File(getFilesDir(), "blocklists");
+                    if (!blocklistsDir.exists()) blocklistsDir.mkdirs(); // Buat folder jika belum ada
+                    
+                    File destFile = new File(blocklistsDir, targetRuleFilename);
+                    InputStream in = getContentResolver().openInputStream(data.getData());
+                    FileOutputStream out = new FileOutputStream(destFile);
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                    in.close(); out.close();
+
+                    new AlertDialog.Builder(this)
+                        .setTitle("Injeksi Berhasil")
+                        .setMessage("File berhasil disimpan di: \n./blocklists/" + targetRuleFilename)
+                        .setPositiveButton("OK", null)
+                        .show();
+                } catch (Exception e) {
+                    new AlertDialog.Builder(this).setMessage("Error: " + e.getMessage()).show();
+                }
+            }
         }
     }
 
