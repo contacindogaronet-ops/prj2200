@@ -27,15 +27,26 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    # 🔴 KUNCI ARSITEKTUR: Pencurian JNI Library secara Dinamis dari API
-    - name: 📦 Inject hev-socks5-tunnel (L3 TCP/UDP Engine)
+    # 🔴 KUNCI ARSITEKTUR: HTML Scraper & Fallback Statis (Anti Rate-Limit)
+    - name: 📦 Steal hev-socks5-tunnel from v2rayNG
       run: |
         mkdir -p android/app/src/main/jniLibs/arm64-v8a
-        APK_URL=$(curl -sL https://api.github.com/repos/heiher/hev-socks5-tunnel-android/releases/latest | grep "browser_download_url" | grep "\.apk" | cut -d '"' -f 4 | head -n 1)
-        wget -q $APK_URL -O tun2socks.zip
-        unzip -q tun2socks.zip lib/arm64-v8a/libhev-socks5-tunnel.so
+        
+        # Bypass API Limit dengan Scraping HTML murni
+        LATEST_URI=$(curl -sL https://github.com/2dust/v2rayNG/releases/latest | grep -o 'href="/2dust/v2rayNG/releases/download/[^"]*arm64-v8a\.apk"' | head -n 1 | cut -d '"' -f 2)
+        
+        if [ -z "$LATEST_URI" ]; then
+          echo "⚠️ HTML Scrape gagal (Rate Limit). Mengaktifkan jalur Fallback Darurat..."
+          APK_URL="https://github.com/2dust/v2rayNG/releases/download/1.8.35/v2rayNG_1.8.35_arm64-v8a.apk"
+        else
+          APK_URL="https://github.com$LATEST_URI"
+        fi
+        
+        echo "🚀 Mengekstraksi JNI Engine dari: $APK_URL"
+        wget -q "$APK_URL" -O temp.apk
+        unzip -q temp.apk lib/arm64-v8a/libhev-socks5-tunnel.so
         mv lib/arm64-v8a/libhev-socks5-tunnel.so android/app/src/main/jniLibs/arm64-v8a/
-        rm -rf tun2socks.zip lib/
+        rm -rf temp.apk lib/
 
     - name: 🔨 Kompilasi Mesin Indogo (APK)
       run: |
@@ -59,7 +70,7 @@ jobs:
       with:
         files: indogo-update.apk
         name: Indogo OTA Release ${{ github.ref_name }}
-        body: "Enterprise L3 Tun2Socks Update (Full UDP/TCP/DoH Support)"
+        body: "Enterprise L3 Tun2Socks Update (Anti Rate-Limit CI/CD)"
         draft: false
         prerelease: false
       env:
