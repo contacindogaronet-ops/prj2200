@@ -25,7 +25,6 @@ public class DaemonService extends Service {
         createNotificationChannel();
         Notification notif = buildNotification("KUL Daemon Standby", "Menunggu instruksi klaster...");
         
-        // 🔴 KUNCI ARSITEKTUR: Penyesuaian panggilan fungsi untuk Android 10 - 14
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         } else {
@@ -60,6 +59,14 @@ public class DaemonService extends Service {
             return;
         }
 
+        // 🔴 KUNCI ARSITEKTUR: Eksekusi CHMOD 777 mentah via Shell
+        try {
+            Runtime.getRuntime().exec("chmod 777 " + binFile.getAbsolutePath()).waitFor();
+        } catch (Exception e) {
+            broadcastLog("⚠️ [" + cluster + "] Peringatan: Eksekusi chmod shell gagal.");
+        }
+        
+        // Fallback Java (untuk berjaga-jaga)
         binFile.setExecutable(true, false);
 
         new Thread(() -> {
