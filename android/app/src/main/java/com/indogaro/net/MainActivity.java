@@ -147,11 +147,14 @@ public class MainActivity extends Activity {
         btnCheckUpdate.setOnClickListener(v -> new OTAUpdater(this).check(true));
 
         btnPanic.setOnClickListener(v -> {
-            for (String cluster : clusterList) {
+            Intent panicIntent = new Intent(this, DaemonService.class);
+            panicIntent.setAction("PANIC_KILL_ALL");
+            startService(panicIntent);
+            /*
                 Intent intent = new Intent(this, DaemonService.class);
                 intent.setAction("STOP_CLUSTER");
                 intent.putExtra("CLUSTER", cluster);
-                startService(intent);
+                startService(intent);*/
             }
             new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("PANIC INITIATED")
@@ -328,7 +331,7 @@ public class MainActivity extends Activity {
                         Intent intent = new Intent(this, DaemonService.class);
                         intent.setAction("STOP_CLUSTER");
                         intent.putExtra("CLUSTER", clusterName);
-                        startService(intent);
+                        startService(intent);*/
                         
                         clusterList.remove(clusterName);
                         saveClusterList();
@@ -355,14 +358,14 @@ public class MainActivity extends Activity {
                 intent.putExtra("CLUSTER", clusterName);
                 intent.putExtra("BINS", currentBins);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent);
-                else startService(intent);
+                else startService(intent);*/
             });
 
             btnStop.setOnClickListener(v -> {
                 Intent intent = new Intent(this, DaemonService.class);
                 intent.setAction("STOP_CLUSTER");
                 intent.putExtra("CLUSTER", clusterName);
-                startService(intent);
+                startService(intent);*/
             });
 
             btnLogs.setOnClickListener(v -> openInteractiveShellDialog(clusterName));

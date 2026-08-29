@@ -15,22 +15,23 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class DaemonService extends Service {
     private final Map<String, Process> activeProcesses = new HashMap<>();
     private final Map<String, Boolean> stopFlags = new HashMap<>(); 
     private SharedPreferences settingsPrefs;
-    
-    // 🔴 KUNCI ARSITEKTUR: Objek Penahan CPU Tidur
+    private SharedPreferences clusterPrefs;
     private PowerManager.WakeLock wakeLock;
 
     @Override
     public void onCreate() {
         super.onCreate();
         settingsPrefs = getSharedPreferences("DaemonSettings", Context.MODE_PRIVATE);
+        clusterPrefs = getSharedPreferences("ClusterMatrix", Context.MODE_PRIVATE);
         
-        // Eksekusi Penguncian CPU
         if (settingsPrefs.getBoolean("WAKELOCK", true)) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Indogo::CpuWakeLock");
@@ -50,17 +51,42 @@ public class DaemonService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String action = intent.getAction();
-            String cluster = intent.getStringExtra("CLUSTER");
-            String bins = intent.getStringExtra("BINS"); 
-
-            if ("START_CLUSTER".equals(action) && bins != null && !bins.isEmpty()) {
-                stopFlags.put(cluster, false); 
-                for (String bin : bins.split(",")) executeBinary(cluster, bin);
+            
+            if ("AUTO_IGNITION".equals(action)) {
+                // 🔴 FITUR: Boot Auto-Ignition
+                Set<String> activeClusters = clusterPrefs.getStringSet("ACTIVE_CLUSTERS", new HashSet<>());
+                for (String cluster : activeClusters) {
+                    String bins = clusterPrefs.getString(cluster, "");
+                    if (!bins.isEmpty()) {
+                        stopFlags.put(cluster, false);
+                        for (String bin : bins.split(",")) executeBinary(cluster, bin);
+                    }
+                }
+            } else if ("START_CLUSTER".equals(action)) {
+                String cluster = intent.getStringExtra("CLUSTER");
+                String bins = intent.getStringExtra("BINS"); 
+                if (bins != null && !bins.isEmpty()) {
+                    stopFlags.put(cluster, false); 
+                    saveClusterState(cluster, true); // Simpan state aktif
+                    for (String bin : bins.split(",")) executeBinary(cluster, bin);
+                }
             } else if ("STOP_CLUSTER".equals(action)) {
+                String cluster = intent.getStringExtra("CLUSTER");
                 killCluster(cluster);
+                saveClusterState(cluster, false); // Simpan state mati
+            } else if ("PANIC_KILL_ALL".equals(action)) {
+                // 🔴 FITUR: Zombie Annihilator (Panic Button)
+                annihilateZombies();
             }
         }
         return START_STICKY;
+    }
+
+    private void saveClusterState(String cluster, boolean isActive) {
+        Set<String> activeSet = new HashSet<>(clusterPrefs.getStringSet("ACTIVE_CLUSTERS", new HashSet<>()));
+        if (isActive) activeSet.add(cluster);
+        else activeSet.remove(cluster);
+        clusterPrefs.edit().putStringSet("ACTIVE_CLUSTERS", activeSet).apply();
     }
 
     private void executeBinary(String cluster, String binName) {
@@ -77,20 +103,17 @@ public class DaemonService extends Service {
             boolean keepRunning = true;
             
             while (keepRunning) {
-                if (stopFlags.getOrDefault(cluster, false)) {
-                    break; 
-                }
+                if (stopFlags.getOrDefault(cluster, false)) break; 
                 
                 try {
                     ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath());
                     pb.directory(getFilesDir());
                     pb.redirectErrorStream(true);
                     
-                    // 🔴 KUNCI ARSITEKTUR: Menyuntikkan Parameter Pengoptimalan Ping
                     Map<String, String> env = pb.environment();
                     if (settingsPrefs.getBoolean("LOW_LATENCY", false)) {
-                        env.put("GOGC", "500"); // GC dipanggil sangat jarang, tapi tidak mati (mencegah OOM Swap)
-                        env.put("GOMAXPROCS", "2"); // Kunci hanya ke 2 Core Performance tertinggi (Cegah bottleneck LITTLE Core)
+                        env.put("GOGC", "500");
+                        env.put("GOMAXPROCS", "2"); 
                     } else {
                         env.put("GOMEMLIMIT", "128MiB"); 
                     }
@@ -101,9 +124,7 @@ public class DaemonService extends Service {
                     broadcastLog(cluster, "🚀 Mengeksekusi biner: " + binName);
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String line;
-                    while ((line = reader.readLine()) != null) {
-                        broadcastLog(cluster, "[" + binName + "] " + line);
-                    }
+                    while ((line = reader.readLine()) != null) broadcastLog(cluster, "[" + binName + "] " + line);
                     
                     process.waitFor(); 
                     activeProcesses.remove(processKey);
@@ -118,7 +139,6 @@ public class DaemonService extends Service {
                         keepRunning = false;
                         broadcastLog(cluster, "💀 Biner mati secara tidak wajar: " + binName);
                     }
-                    
                 } catch (Exception e) {
                     broadcastLog(cluster, "🛑 Crash Executor: " + e.getMessage());
                     keepRunning = false;
@@ -129,13 +149,32 @@ public class DaemonService extends Service {
 
     private void killCluster(String cluster) {
         stopFlags.put(cluster, true); 
-        broadcastLog(cluster, "⚠️ Menerima sinyal pemusnahan massal...");
+        broadcastLog(cluster, "⚠️ Menerima sinyal pemusnahan...");
         for (Map.Entry<String, Process> entry : activeProcesses.entrySet()) {
             if (entry.getKey().startsWith(cluster + "_")) {
                 entry.getValue().destroy();
                 broadcastLog(cluster, "🔪 Membunuh proses: " + entry.getKey());
             }
         }
+    }
+
+    // 🔴 KUNCI ARSITEKTUR: Algoritma Pembantai Zombie Process
+    private void annihilateZombies() {
+        for (String cluster : clusterPrefs.getString("CLUSTER_LIST", "").split(",")) {
+            stopFlags.put(cluster, true);
+            saveClusterState(cluster, false);
+        }
+        activeProcesses.clear(); // Bersihkan referensi Java
+        
+        new Thread(() -> {
+            try {
+                // Tembak brutal level Kernel Linux: Cari proses di direktori kita dan paksa mati
+                String appDir = getFilesDir().getAbsolutePath();
+                String killCmd = "ps -A | grep '" + appDir + "' | awk '{print $2}' | xargs kill -9";
+                Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c", killCmd});
+                p.waitFor();
+            } catch (Exception e) {}
+        }).start();
     }
 
     private void broadcastLog(String cluster, String msg) {
@@ -151,9 +190,6 @@ public class DaemonService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        // 🔴 Lepaskan tahanan CPU agar baterai bisa bernapas saat aplikasi dimatikan total
-        if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release();
-        }
+        if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
     }
 }
