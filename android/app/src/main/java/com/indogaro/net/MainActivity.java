@@ -1,4 +1,4 @@
-package com.jargo.daemon;
+package com.indogaro.net;
 
 import android.app.Activity;
 import android.app.AlertDialog;

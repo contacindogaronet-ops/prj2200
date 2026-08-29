@@ -1,4 +1,4 @@
-package com.jargo.daemon;
+package com.indogaro.net;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -31,7 +31,7 @@ public class DaemonService extends Service {
             NotificationChannel channel = new NotificationChannel("DAEMON", "Daemon", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
-        Notification notif = new Notification.Builder(this, "DAEMON").setContentTitle("KUL Daemon").setContentText("Standby...").setSmallIcon(android.R.drawable.ic_media_play).build();
+        Notification notif = new Notification.Builder(this, "DAEMON").setContentTitle("Indogo").setContentText("Standby...").setSmallIcon(android.R.drawable.ic_media_play).build();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         else startForeground(1, notif);
     }
