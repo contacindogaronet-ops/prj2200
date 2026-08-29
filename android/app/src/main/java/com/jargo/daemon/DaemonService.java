@@ -1,9 +1,12 @@
 package com.jargo.daemon;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Build;
 import android.os.IBinder;
-import android.util.Log;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -11,70 +14,112 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DaemonService extends Service {
-    // Matriks penyimpanan proses yang berjalan
     private final Map<String, Process> activeProcesses = new HashMap<>();
+    private static final String CHANNEL_ID = "DAEMON_CHANNEL";
+    private int runningCount = 0;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        createNotificationChannel();
+        startForeground(1, buildNotification("KUL Daemon Standby", "Menunggu instruksi klaster..."));
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String action = intent.getAction();
-            String binName = intent.getStringExtra("BIN_NAME");
+            String cluster = intent.getStringExtra("CLUSTER");
+            String bins = intent.getStringExtra("BINS"); // Format: "bin1,bin2"
 
-            if ("START_BIN".equals(action) && binName != null) {
-                executeBinary(binName);
-            } else if ("STOP_BIN".equals(action) && binName != null) {
-                killBinary(binName);
+            if ("START_CLUSTER".equals(action) && bins != null && !bins.isEmpty()) {
+                String[] binArray = bins.split(",");
+                for (String bin : binArray) executeBinary(cluster, bin);
+            } else if ("STOP_CLUSTER".equals(action)) {
+                killCluster(cluster);
             }
         }
         return START_STICKY;
     }
 
-    private void executeBinary(String binName) {
-        if (activeProcesses.containsKey(binName)) return; // Sudah berjalan
+    private void executeBinary(String cluster, String binName) {
+        String processKey = cluster + "_" + binName;
+        if (activeProcesses.containsKey(processKey)) return;
 
         File binFile = new File(getFilesDir(), binName);
         if (!binFile.exists()) {
-            Log.e("DAEMON", "Biner tidak ditemukan: " + binName);
+            broadcastLog("❌ [" + cluster + "] Biner hilang: " + binName);
             return;
         }
 
-        // 🔴 KUNCI ARSITEKTUR: Mutlak butuh hak eksekusi (chmod +x)
         binFile.setExecutable(true, false);
 
         new Thread(() -> {
             try {
                 ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath());
-                pb.directory(getFilesDir()); // Jalankan di direktori privat
-                pb.redirectErrorStream(true); // Gabung stdout dan stderr
+                pb.directory(getFilesDir());
+                pb.redirectErrorStream(true);
                 
                 Process process = pb.start();
-                activeProcesses.put(binName, process);
-                Log.i("DAEMON", "🚀 Biner [ " + binName + " ] berhasil dihidupkan.");
+                activeProcesses.put(processKey, process);
+                
+                runningCount++;
+                updateNotification();
+                broadcastLog("🚀 [" + cluster + "] Inisiasi biner: " + binName);
 
-                // Tarik log dari biner secara real-time
                 BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    Log.d("BIN_" + binName, line); // Akan dicetak ke Logcat
+                    broadcastLog("[" + binName + "] " + line);
                 }
                 
                 process.waitFor();
-                activeProcesses.remove(binName);
-                Log.w("DAEMON", "💀 Biner [ " + binName + " ] telah mati/berhenti.");
+                activeProcesses.remove(processKey);
+                runningCount--;
+                updateNotification();
+                broadcastLog("💀 [" + cluster + "] Biner berhenti: " + binName);
 
             } catch (Exception e) {
-                Log.e("DAEMON", "Gagal mengeksekusi " + binName, e);
+                broadcastLog("🛑 [" + cluster + "] Crash: " + e.getMessage());
             }
         }).start();
     }
 
-    private void killBinary(String binName) {
-        Process process = activeProcesses.get(binName);
-        if (process != null) {
-            process.destroy(); // Kirim sinyal SIGTERM
-            activeProcesses.remove(binName);
-            Log.i("DAEMON", "Biner [ " + binName + " ] dihentikan paksa.");
+    private void killCluster(String cluster) {
+        broadcastLog("⚠️ [" + cluster + "] Menerima sinyal pemusnahan massal...");
+        for (Map.Entry<String, Process> entry : activeProcesses.entrySet()) {
+            if (entry.getKey().startsWith(cluster + "_")) {
+                entry.getValue().destroy();
+                broadcastLog("🔪 Membunuh: " + entry.getKey());
+            }
         }
+    }
+
+    private void broadcastLog(String msg) {
+        Intent intent = new Intent("DAEMON_LOG");
+        intent.putExtra("log", msg);
+        sendBroadcast(intent);
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                    CHANNEL_ID, "Daemon Manager", NotificationManager.IMPORTANCE_LOW);
+            getSystemService(NotificationManager.class).createNotificationChannel(channel);
+        }
+    }
+
+    private Notification buildNotification(String title, String text) {
+        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setSmallIcon(android.R.drawable.ic_media_play);
+        return builder.build();
+    }
+
+    private void updateNotification() {
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        manager.notify(1, buildNotification("KUL Daemon Active", "Binaries running: " + runningCount));
     }
 
     @Override
@@ -83,10 +128,7 @@ public class DaemonService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        // Bantai semua zombie process saat service dimatikan
-        for (Process p : activeProcesses.values()) {
-            if (p != null) p.destroy();
-        }
+        for (Process p : activeProcesses.values()) if (p != null) p.destroy();
         activeProcesses.clear();
     }
 }

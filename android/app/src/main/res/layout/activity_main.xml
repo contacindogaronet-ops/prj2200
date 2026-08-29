@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="24dp" android:background="#0A0A0A" android:gravity="center">
-
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
-        android:text="KUL DAEMON MANAGER" android:textColor="#00FF00" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="32dp"/>
-
-    <Button android:id="@+id/btnUpload" android:layout_width="match_parent" android:layout_height="60dp"
-        android:text="[+] INJECT NEW BINARY" android:backgroundTint="#333333" android:textColor="#FFFFFF" android:layout_marginBottom="16dp"/>
-        
-    <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="Menunggu injeksi..." android:textColor="#AAAAAA" android:gravity="center"/>
-</LinearLayout>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="#09090B">
+    <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+        <include layout="@layout/layout_clusters" android:id="@+id/viewClusters" />
+        <include layout="@layout/layout_logs" android:id="@+id/viewLogs" android:visibility="gone" />
+    </FrameLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="70dp" android:layout_alignParentBottom="true" android:layout_marginHorizontal="24dp" android:layout_marginBottom="24dp" android:background="#E6121212" android:orientation="horizontal" android:weightSum="2" android:elevation="10dp" android:gravity="center">
+        <TextView android:id="@+id/navClusters" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="🎛️ CLUSTERS" android:textColor="#00E676" android:textStyle="bold" android:textSize="14sp"/>
+        <TextView android:id="@+id/navLogs" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:gravity="center" android:text="📝 LIVE LOGS" android:textColor="#777777" android:textStyle="bold" android:textSize="14sp"/>
+    </LinearLayout>
+</RelativeLayout>

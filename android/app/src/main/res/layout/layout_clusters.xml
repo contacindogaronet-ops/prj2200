@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:padding="16dp">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="90dp">
+        
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ORCHESTRATOR MATRIX" android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="24dp" android:layout_gravity="center"/>
+
+        <!-- CLUSTER ALPHA -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1A1A1C" android:padding="16dp" android:layout_marginBottom="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CLUSTER ALPHA" android:textColor="#00E676" android:textStyle="bold" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvAlphaStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="[ 0 / 5 ] Binaries Injectable" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="12dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="3">
+                <Button android:id="@+id/btnAlphaInject" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="[+] INJECT" android:backgroundTint="#333333" android:textColor="#00BBFF" android:textSize="12sp" android:layout_marginRight="4dp"/>
+                <Button android:id="@+id/btnAlphaStart" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="▶ START" android:backgroundTint="#333333" android:textColor="#00E676" android:textSize="12sp" android:layout_marginHorizontal="2dp"/>
+                <Button android:id="@+id/btnAlphaStop" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="■ STOP" android:backgroundTint="#333333" android:textColor="#FF3D00" android:textSize="12sp" android:layout_marginLeft="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- CLUSTER BETA -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1A1A1C" android:padding="16dp" android:layout_marginBottom="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CLUSTER BETA" android:textColor="#00BBFF" android:textStyle="bold" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvBetaStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="[ 0 / 5 ] Binaries Injectable" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="12dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="3">
+                <Button android:id="@+id/btnBetaInject" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="[+] INJECT" android:backgroundTint="#333333" android:textColor="#00BBFF" android:textSize="12sp" android:layout_marginRight="4dp"/>
+                <Button android:id="@+id/btnBetaStart" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="▶ START" android:backgroundTint="#333333" android:textColor="#00E676" android:textSize="12sp" android:layout_marginHorizontal="2dp"/>
+                <Button android:id="@+id/btnBetaStop" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="■ STOP" android:backgroundTint="#333333" android:textColor="#FF3D00" android:textSize="12sp" android:layout_marginLeft="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- CLUSTER GAMMA -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1A1A1C" android:padding="16dp" android:layout_marginBottom="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CLUSTER GAMMA" android:textColor="#FF3D00" android:textStyle="bold" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvGammaStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="[ 0 / 5 ] Binaries Injectable" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="12dp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="3">
+                <Button android:id="@+id/btnGammaInject" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="[+] INJECT" android:backgroundTint="#333333" android:textColor="#00BBFF" android:textSize="12sp" android:layout_marginRight="4dp"/>
+                <Button android:id="@+id/btnGammaStart" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="▶ START" android:backgroundTint="#333333" android:textColor="#00E676" android:textSize="12sp" android:layout_marginHorizontal="2dp"/>
+                <Button android:id="@+id/btnGammaStop" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="■ STOP" android:backgroundTint="#333333" android:textColor="#FF3D00" android:textSize="12sp" android:layout_marginLeft="4dp"/>
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
