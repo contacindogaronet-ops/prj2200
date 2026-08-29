@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
 import java.io.BufferedReader;
@@ -22,7 +23,14 @@ public class DaemonService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-        startForeground(1, buildNotification("KUL Daemon Standby", "Menunggu instruksi klaster..."));
+        Notification notif = buildNotification("KUL Daemon Standby", "Menunggu instruksi klaster...");
+        
+        // 🔴 KUNCI ARSITEKTUR: Penyesuaian panggilan fungsi untuk Android 10 - 14
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(1, notif);
+        }
     }
 
     @Override
@@ -30,7 +38,7 @@ public class DaemonService extends Service {
         if (intent != null) {
             String action = intent.getAction();
             String cluster = intent.getStringExtra("CLUSTER");
-            String bins = intent.getStringExtra("BINS"); // Format: "bin1,bin2"
+            String bins = intent.getStringExtra("BINS"); 
 
             if ("START_CLUSTER".equals(action) && bins != null && !bins.isEmpty()) {
                 String[] binArray = bins.split(",");
