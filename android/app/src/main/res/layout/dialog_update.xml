@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp">
+    
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM UPDATE" android:textColor="#3B82F6" android:textSize="12sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+    <TextView android:id="@+id/tvUpdateVersion" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Version --" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" android:layout_marginTop="4dp"/>
+    
+    <ScrollView android:layout_width="match_parent" android:layout_height="150dp" android:layout_marginTop="16dp" android:background="#09090B" android:padding="12dp">
+        <TextView android:id="@+id/tvUpdateChangelog" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Loading changelog..." android:textColor="#8E8E93" android:textSize="12sp" android:lineSpacingExtra="4dp"/>
+    </ScrollView>
+
+    <LinearLayout android:id="@+id/layoutProgress" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:layout_marginTop="20dp">
+        <TextView android:id="@+id/tvProgressText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Downloading: 0%" android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginBottom="8dp"/>
+        <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="6dp" android:progressDrawable="@drawable/custom_progress_bar" android:max="100" android:progress="0"/>
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginTop="24dp">
+        <Button android:id="@+id/btnUpdateCancel" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="LATER" android:backgroundTint="#1C1C1E" android:textColor="#8E8E93" android:layout_marginRight="8dp"/>
+        <Button android:id="@+id/btnUpdateAction" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="INSTALL" android:backgroundTint="#3B82F6" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginLeft="8dp"/>
+    </LinearLayout>
+</LinearLayout>

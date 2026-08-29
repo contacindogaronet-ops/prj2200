@@ -140,6 +140,9 @@ public class MainActivity extends Activity {
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
         
+        Button btnCheckUpdate = findViewById(R.id.btnCheckUpdate);
+        btnCheckUpdate.setOnClickListener(v -> new OTAUpdater(this).check());
+
         btnPanic.setOnClickListener(v -> {
             for (String cluster : clusterList) {
                 Intent intent = new Intent(this, DaemonService.class);

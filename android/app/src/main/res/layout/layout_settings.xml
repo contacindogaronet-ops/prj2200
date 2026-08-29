@@ -19,6 +19,7 @@
 
         <!-- 🔴 KUNCI ARSITEKTUR: Panic Button (Kill All) -->
         <Button android:id="@+id/btnPanic" android:layout_width="match_parent" android:layout_height="60dp" android:text="PANIC: KILL ALL NODES" android:background="@drawable/bg_btn_panic" android:textColor="#FF453A" android:textStyle="bold" android:letterSpacing="0.05"/>
+        <Button android:id="@+id/btnCheckUpdate" android:layout_width="match_parent" android:layout_height="60dp" android:text="CHECK FOR UPDATES" android:background="@drawable/bg_pill" android:textColor="#3B82F6" android:textStyle="bold" android:letterSpacing="0.05" android:layout_marginTop="16dp"/>
         
     </LinearLayout>
 </ScrollView>
