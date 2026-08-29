@@ -1,11 +1,15 @@
-name: KUL Daemon Compiler
+name: KUL Daemon Compiler & OTA Releaser
 
 on:
   push:
-    branches: [ "main" ]
+    tags:
+      - 'v*' # 🔴 Workflow INI HANYA MENYALA JIKA ANDA PUSH VERSI (Misal: git tag v4.0)
+
+permissions:
+  contents: write # Diperlukan untuk membuat Release
 
 jobs:
-  build-apk:
+  build-and-release:
     runs-on: ubuntu-latest
     steps:
     - name: 📥 Memuat Kode Sumber
@@ -22,13 +26,21 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    - name: 🔨 Kompilasi Mesin Daemon (APK)
+    - name: 🔨 Kompilasi Mesin Indogo (APK)
       run: |
         cd android
         gradle assembleDebug
 
-    - name: 📦 Distribusi Artefak (APK)
-      uses: actions/upload-artifact@v4
+    - name: 🏷️ Rename APK untuk OTA
+      run: mv android/app/build/outputs/apk/debug/app-debug.apk indogo-update.apk
+
+    - name: 🚀 Otomatisasi GitHub Release (OTA Backend)
+      uses: softprops/action-gh-release@v1
       with:
-        name: Daemon-Manager-App
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        files: indogo-update.apk
+        name: Indogo OTA Release ${{ github.ref_name }}
+        body: "Automated OTA update build for Indogo Daemon."
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

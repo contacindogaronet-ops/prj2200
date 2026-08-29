@@ -7,8 +7,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <!-- 🔴 KUNCI ARSITEKTUR: Izin Mencegah CPU Tidur (Ping Optimizer) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    
+    <!-- 🔴 KUNCI ARSITEKTUR OTA: Izin Mutlak untuk Menginstal Pembaruan -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="true"
@@ -17,6 +19,17 @@
         android:label="Indogo"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
+        <!-- 🔴 KUNCI ARSITEKTUR OTA: Jembatan FileProvider -->
+        <provider
+            android:name="android.content.FileProvider"
+            android:authorities="com.indogaro.net.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths" />
+        </provider>
+
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

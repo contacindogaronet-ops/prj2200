@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Jalur ini mengizinkan Installer OS membaca APK dari folder privat aplikasi -->
+    <external-files-path name="downloaded_apk" path="Download/" />
+</paths>
