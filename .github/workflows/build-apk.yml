@@ -27,17 +27,17 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    # 🔴 KUNCI ARSITEKTUR: HTML Scraper & Fallback Statis (Anti Rate-Limit)
-    - name: 📦 Steal hev-socks5-tunnel from v2rayNG
+    # 🔴 KUNCI ARSITEKTUR: Pencurian JNI Library dari Official SocksTun (Heiher)
+    - name: 📦 Steal hev-socks5-tunnel from Official Repository
       run: |
         mkdir -p android/app/src/main/jniLibs/arm64-v8a
         
-        # Bypass API Limit dengan Scraping HTML murni
-        LATEST_URI=$(curl -sL https://github.com/2dust/v2rayNG/releases/latest | grep -o 'href="/2dust/v2rayNG/releases/download/[^"]*arm64-v8a\.apk"' | head -n 1 | cut -d '"' -f 2)
+        # Scrape APK terbaru dari heiher/sockstun
+        LATEST_URI=$(curl -sL https://github.com/heiher/sockstun/releases/latest | grep -o 'href="/heiher/sockstun/releases/download/[^"]*release\.apk"' | head -n 1 | cut -d '"' -f 2)
         
         if [ -z "$LATEST_URI" ]; then
-          echo "⚠️ HTML Scrape gagal (Rate Limit). Mengaktifkan jalur Fallback Darurat..."
-          APK_URL="https://github.com/2dust/v2rayNG/releases/download/1.8.35/v2rayNG_1.8.35_arm64-v8a.apk"
+          echo "⚠️ HTML Scrape gagal (Rate Limit). Mengaktifkan jalur Fallback Abadi..."
+          APK_URL="https://github.com/heiher/sockstun/releases/download/8.0/hev.sockstun-8.0-release.apk"
         else
           APK_URL="https://github.com$LATEST_URI"
         fi
@@ -70,7 +70,7 @@ jobs:
       with:
         files: indogo-update.apk
         name: Indogo OTA Release ${{ github.ref_name }}
-        body: "Enterprise L3 Tun2Socks Update (Anti Rate-Limit CI/CD)"
+        body: "Enterprise L3 Tun2Socks Update (Official Hev-SocksTun Engine)"
         draft: false
         prerelease: false
       env:
