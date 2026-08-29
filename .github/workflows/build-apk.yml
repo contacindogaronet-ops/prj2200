@@ -27,14 +27,15 @@ jobs:
       with:
         gradle-version: '8.4'
 
-    # 🔴 KUNCI ARSITEKTUR: Pencurian JNI Library dari Upstream secara Otomatis
+    # 🔴 KUNCI ARSITEKTUR: Pencurian JNI Library secara Dinamis dari API
     - name: 📦 Inject hev-socks5-tunnel (L3 TCP/UDP Engine)
       run: |
         mkdir -p android/app/src/main/jniLibs/arm64-v8a
-        wget -q https://github.com/heiher/hev-socks5-tunnel/releases/download/2.7.7/hev-socks5-tunnel-android-arm64.apk -O tun2socks.apk
-        unzip -q tun2socks.apk lib/arm64-v8a/libhev-socks5-tunnel.so
+        APK_URL=$(curl -sL https://api.github.com/repos/heiher/hev-socks5-tunnel-android/releases/latest | grep "browser_download_url" | grep "\.apk" | cut -d '"' -f 4 | head -n 1)
+        wget -q $APK_URL -O tun2socks.zip
+        unzip -q tun2socks.zip lib/arm64-v8a/libhev-socks5-tunnel.so
         mv lib/arm64-v8a/libhev-socks5-tunnel.so android/app/src/main/jniLibs/arm64-v8a/
-        rm tun2socks.apk
+        rm -rf tun2socks.zip lib/
 
     - name: 🔨 Kompilasi Mesin Indogo (APK)
       run: |
