@@ -8,22 +8,29 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
+import android.net.TrafficStats;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class MainActivity extends Activity {
@@ -32,28 +39,30 @@ public class MainActivity extends Activity {
     private LinearLayout clusterContainer;
     private Button btnAddCluster;
     
+    // Telemetry UI
+    private TextView tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
+    private long lastRxBytes = 0;
+    private long lastTxBytes = 0;
+    private Handler telemetryHandler = new Handler(Looper.getMainLooper());
+    private Runnable telemetryRunnable;
+    
     private SharedPreferences prefs;
     private List<String> clusterList = new ArrayList<>();
-    private Map<String, StringBuilder> logsMap = new HashMap<>(); // Database Log Dinamis
+    private Map<String, StringBuilder> logsMap = new HashMap<>(); 
     
     private String currentInjectCluster = "";
     private String activeLogCluster = "";
-    private TextView tvActiveLog = null; // Menyimpan referensi textview dialog log yang sedang terbuka
+    private TextView tvActiveLog = null; 
 
-    // 🔴 KUNCI ARSITEKTUR: Penerima Log Spesifik Klaster dan Pembersih ANSI
     private final BroadcastReceiver logReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String cluster = intent.getStringExtra("cluster");
             String msg = intent.getStringExtra("log");
             if (cluster != null && msg != null) {
-                // HAPUS KODE WARNA ANSI (Regex)
                 msg = msg.replaceAll("\u001B\\[[;\\d]*m", "");
-                
                 if (!logsMap.containsKey(cluster)) logsMap.put(cluster, new StringBuilder());
                 logsMap.get(cluster).append("\n> ").append(msg);
-                
-                // Jika dialog log klaster tersebut sedang dibuka, update secara real-time
                 if (cluster.equals(activeLogCluster) && tvActiveLog != null) {
                     tvActiveLog.append("\n> " + msg);
                 }
@@ -80,8 +89,19 @@ public class MainActivity extends Activity {
         clusterContainer = findViewById(R.id.clusterContainer);
         btnAddCluster = findViewById(R.id.btnAddCluster);
 
+        // Bind Telemetry UI
+        tvTemp = findViewById(R.id.tvTemp);
+        tvRx = findViewById(R.id.tvRx);
+        tvTx = findViewById(R.id.tvTx);
+        tvPingLocal = findViewById(R.id.tvPingLocal);
+        tvPingGlobal = findViewById(R.id.tvPingGlobal);
+        
+        lastRxBytes = TrafficStats.getTotalRxBytes();
+        lastTxBytes = TrafficStats.getTotalTxBytes();
+
         setupNavigation();
         renderDynamicClusters();
+        startTelemetryEngine();
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
 
@@ -90,6 +110,70 @@ public class MainActivity extends Activity {
         } else {
             registerReceiver(logReceiver, new IntentFilter("DAEMON_LOG"));
         }
+    }
+
+    // 🔴 KUNCI ARSITEKTUR: Mesin Telemetri Real-Time & Ping Asinkron
+    private void startTelemetryEngine() {
+        telemetryRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (viewHome.getVisibility() == View.VISIBLE) {
+                    // Kalkulasi Network Bandwidth (1 detik)
+                    long currentRx = TrafficStats.getTotalRxBytes();
+                    long currentTx = TrafficStats.getTotalTxBytes();
+                    tvRx.setText(formatSpeed(currentRx - lastRxBytes));
+                    tvTx.setText(formatSpeed(currentTx - lastTxBytes));
+                    lastRxBytes = currentRx;
+                    lastTxBytes = currentTx;
+
+                    // Sensor Suhu Baterai
+                    Intent intent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+                    if (intent != null) {
+                        float temp = ((float) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)) / 10;
+                        tvTemp.setText(temp + " °C");
+                    }
+
+                    // Eksekusi Latensi Ping (Thread terpisah)
+                    executePingMetrics();
+                }
+                telemetryHandler.postDelayed(this, 1000); // Polling 1 Detik
+            }
+        };
+        telemetryHandler.post(telemetryRunnable);
+    }
+
+    private String formatSpeed(long bytes) {
+        if (bytes < 1024) return bytes + " B/s";
+        if (bytes < 1024 * 1024) return (bytes / 1024) + " KB/s";
+        return String.format(Locale.US, "%.2f MB/s", (float) bytes / (1024 * 1024));
+    }
+
+    private void executePingMetrics() {
+        new Thread(() -> {
+            String local = getPing("127.0.0.1");
+            String global = getPing("8.8.8.8");
+            runOnUiThread(() -> {
+                if (tvPingLocal != null) tvPingLocal.setText(local);
+                if (tvPingGlobal != null) tvPingGlobal.setText(global);
+            });
+        }).start();
+    }
+
+    private String getPing(String host) {
+        try {
+            Process p = Runtime.getRuntime().exec("ping -c 1 -W 1 " + host);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains("time=")) {
+                    int start = line.indexOf("time=") + 5;
+                    int end = line.indexOf(" ms", start);
+                    return line.substring(start, end) + " ms";
+                }
+            }
+            p.waitFor();
+        } catch (Exception e) {}
+        return "RTO";
     }
 
     private void setupNavigation() {
@@ -103,20 +187,16 @@ public class MainActivity extends Activity {
         viewClusters.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
         viewSettings.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
 
-        navHome.setTextColor(Color.parseColor(index == 0 ? "#00E676" : "#777777"));
-        navClusters.setTextColor(Color.parseColor(index == 1 ? "#00E676" : "#777777"));
-        navSettings.setTextColor(Color.parseColor(index == 2 ? "#00E676" : "#777777"));
+        // Enterprise Nav Color (Sky Blue vs Slate 400)
+        navHome.setTextColor(Color.parseColor(index == 0 ? "#38BDF8" : "#94A3B8"));
+        navClusters.setTextColor(Color.parseColor(index == 1 ? "#38BDF8" : "#94A3B8"));
+        navSettings.setTextColor(Color.parseColor(index == 2 ? "#38BDF8" : "#94A3B8"));
     }
 
     private void loadClusterList() {
         String saved = prefs.getString("CLUSTER_LIST", "");
-        if (!saved.isEmpty()) {
-            clusterList = new ArrayList<>(Arrays.asList(saved.split(",")));
-        } else {
-            // Default cluster pertama kali buka
-            clusterList.add("ALPHA");
-            saveClusterList();
-        }
+        if (!saved.isEmpty()) clusterList = new ArrayList<>(Arrays.asList(saved.split(",")));
+        else { clusterList.add("ALPHA"); saveClusterList(); }
     }
 
     private void saveClusterList() {
@@ -127,7 +207,7 @@ public class MainActivity extends Activity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Create New Cluster");
         final EditText input = new EditText(this);
-        input.setHint("e.g. OMEGA");
+        input.setHint("e.g. CORE_PROXY");
         builder.setView(input);
         builder.setPositiveButton("CREATE", (dialog, which) -> {
             String name = input.getText().toString().trim().toUpperCase();
@@ -141,13 +221,9 @@ public class MainActivity extends Activity {
         builder.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Mencetak UI Kartu secara dinamis
     private void renderDynamicClusters() {
-        // Hapus semua view lama kecuali judul dan tombol tambah
         int childCount = clusterContainer.getChildCount();
-        for (int i = childCount - 1; i >= 2; i--) {
-            clusterContainer.removeViewAt(i);
-        }
+        for (int i = childCount - 1; i >= 2; i--) clusterContainer.removeViewAt(i);
 
         for (String clusterName : clusterList) {
             View card = getLayoutInflater().inflate(R.layout.item_cluster, clusterContainer, false);
@@ -201,30 +277,20 @@ public class MainActivity extends Activity {
         
         ScrollView scroll = new ScrollView(this);
         scroll.setPadding(24, 24, 24, 24);
-        scroll.setBackgroundColor(Color.parseColor("#09090B"));
+        scroll.setBackgroundColor(Color.parseColor("#0F172A")); // Slate 900
         
         tvActiveLog = new TextView(this);
-        tvActiveLog.setTextColor(Color.parseColor("#00E676"));
+        tvActiveLog.setTextColor(Color.parseColor("#4ADE80")); // Terminal Green
         tvActiveLog.setTextSize(12f);
         tvActiveLog.setTypeface(android.graphics.Typeface.MONOSPACE);
         
-        // Muat log lama
-        if (logsMap.containsKey(clusterName)) {
-            tvActiveLog.setText(logsMap.get(clusterName).toString());
-        } else {
-            tvActiveLog.setText("> Menunggu output dari klaster " + clusterName + "...");
-        }
+        if (logsMap.containsKey(clusterName)) tvActiveLog.setText(logsMap.get(clusterName).toString());
+        else tvActiveLog.setText("> Menunggu output dari klaster " + clusterName + "...");
         
         scroll.addView(tvActiveLog);
         builder.setView(scroll);
-        
-        builder.setPositiveButton("CLOSE", (dialog, which) -> {
-            activeLogCluster = "";
-            tvActiveLog = null;
-        });
-        
-        AlertDialog dialog = builder.create();
-        dialog.show();
+        builder.setPositiveButton("CLOSE", (dialog, which) -> { activeLogCluster = ""; tvActiveLog = null; });
+        builder.create().show();
     }
 
     @Override
@@ -244,7 +310,7 @@ public class MainActivity extends Activity {
 
                 String newBins = bins.isEmpty() ? binName : bins + "," + binName;
                 prefs.edit().putString(currentInjectCluster, newBins).apply();
-                renderDynamicClusters(); // Render ulang untuk update teks jumlah
+                renderDynamicClusters(); 
             } catch (Exception e) {}
         }
     }
@@ -252,6 +318,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        telemetryHandler.removeCallbacks(telemetryRunnable);
         unregisterReceiver(logReceiver);
     }
 }
