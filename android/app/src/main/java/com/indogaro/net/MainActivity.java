@@ -38,10 +38,9 @@ public class MainActivity extends Activity {
     private TextView navHome, navClusters, navSettings;
     private LinearLayout clusterContainer;
     private TextView btnAddCluster;
-    private Button btnPanic;
+    private Button btnPanic, btnCheckUpdate;
     private Switch switchAutoRestart, switchWakelock, switchLowLatency;
     
-    // Telemetry UI
     private TextView tvUptime, tvRam, tvRx, tvTx, tvTotalData, tvPingLocal;
     private TelemetryGraphView graphRam, graphRx, graphTx;
     
@@ -82,13 +81,12 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         
         appStartTime = System.currentTimeMillis();
-        myUid = android.os.Process.myUid(); // 🔴 Dapatkan UID Aplikasi ini
+        myUid = android.os.Process.myUid();
         
         prefs = getSharedPreferences("ClusterMatrix", MODE_PRIVATE);
         settingsPrefs = getSharedPreferences("DaemonSettings", MODE_PRIVATE);
         loadClusterList();
-        
-        // 🔴 KUNCI ARSITEKTUR: Eksekusi Ghost Polling OTA saat aplikasi dibuka
+
         new OTAUpdater(this).check(false);
 
         viewHome = findViewById(R.id.viewHome);
@@ -102,6 +100,7 @@ public class MainActivity extends Activity {
         clusterContainer = findViewById(R.id.clusterContainer);
         btnAddCluster = findViewById(R.id.btnAddCluster);
         btnPanic = findViewById(R.id.btnPanic);
+        btnCheckUpdate = findViewById(R.id.btnCheckUpdate);
         
         switchAutoRestart = findViewById(R.id.switchAutoRestart);
         switchWakelock = findViewById(R.id.switchWakelock);
@@ -126,12 +125,10 @@ public class MainActivity extends Activity {
         graphRx = findViewById(R.id.graphRx);
         graphTx = findViewById(R.id.graphTx);
         
-        // Atur warna grafik
-        graphRam.setLineColor("#FF9F0A"); // Orange
-        graphRx.setLineColor("#34C759");  // Green
-        graphTx.setLineColor("#5E5CE6");  // Purple
+        graphRam.setLineColor("#FF9F0A"); 
+        graphRx.setLineColor("#34C759");  
+        graphTx.setLineColor("#5E5CE6");  
 
-        // Inisialisasi Data Jaringan UID
         long uidRx = TrafficStats.getUidRxBytes(myUid);
         long uidTx = TrafficStats.getUidTxBytes(myUid);
         lastRxBytes = (uidRx == TrafficStats.UNSUPPORTED) ? 0 : uidRx;
@@ -142,23 +139,17 @@ public class MainActivity extends Activity {
         startTelemetryEngine();
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
-        
-        Button btnCheckUpdate = findViewById(R.id.btnCheckUpdate);
         btnCheckUpdate.setOnClickListener(v -> new OTAUpdater(this).check(true));
-
+        
+        // 🔴 KUNCI ARSITEKTUR: Tombol Panic memicu Zombie Annihilator
         btnPanic.setOnClickListener(v -> {
             Intent panicIntent = new Intent(this, DaemonService.class);
             panicIntent.setAction("PANIC_KILL_ALL");
             startService(panicIntent);
-            /*
-                Intent intent = new Intent(this, DaemonService.class);
-                intent.setAction("STOP_CLUSTER");
-                intent.putExtra("CLUSTER", cluster);
-                startService(intent);*/
-            }
+            
             new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("PANIC INITIATED")
-                .setMessage("Semua eksekusi proses telah dihentikan secara paksa.")
+                .setMessage("Semua eksekusi proses telah dihentikan secara paksa dari memori Kernel.")
                 .setPositiveButton("OK", null)
                 .show();
         });
@@ -179,8 +170,6 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 if (viewHome.getVisibility() == View.VISIBLE) {
-                    
-                    // 🔴 Dapatkan data jaringan KHUSUS aplikasi/bot ini
                     long currentRx = TrafficStats.getUidRxBytes(myUid);
                     long currentTx = TrafficStats.getUidTxBytes(myUid);
                     
@@ -191,11 +180,9 @@ public class MainActivity extends Activity {
                         tvRx.setText(formatSpeed(diffRx));
                         tvTx.setText(formatSpeed(diffTx));
                         
-                        // Push ke grafik
                         graphRx.addDataPoint(diffRx);
                         graphTx.addDataPoint(diffTx);
                         
-                        // Kalkulasi Total Data Digunakan (RX + TX)
                         tvTotalData.setText(formatDataSize(currentRx + currentTx));
                         
                         lastRxBytes = currentRx;
@@ -208,7 +195,6 @@ public class MainActivity extends Activity {
                     int hours = (int) ((uptimeMillis / (1000 * 60 * 60)) % 24);
                     tvUptime.setText(String.format(Locale.US, "UPTIME: %02d:%02d:%02d", hours, minutes, seconds));
 
-                    // RAM Usage
                     long usedMem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024);
                     tvRam.setText(usedMem + " MB");
                     graphRam.addDataPoint(usedMem);
@@ -331,7 +317,7 @@ public class MainActivity extends Activity {
                         Intent intent = new Intent(this, DaemonService.class);
                         intent.setAction("STOP_CLUSTER");
                         intent.putExtra("CLUSTER", clusterName);
-                        startService(intent);*/
+                        startService(intent);
                         
                         clusterList.remove(clusterName);
                         saveClusterList();
@@ -358,14 +344,14 @@ public class MainActivity extends Activity {
                 intent.putExtra("CLUSTER", clusterName);
                 intent.putExtra("BINS", currentBins);
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent);
-                else startService(intent);*/
+                else startService(intent);
             });
 
             btnStop.setOnClickListener(v -> {
                 Intent intent = new Intent(this, DaemonService.class);
                 intent.setAction("STOP_CLUSTER");
                 intent.putExtra("CLUSTER", clusterName);
-                startService(intent);*/
+                startService(intent);
             });
 
             btnLogs.setOnClickListener(v -> openInteractiveShellDialog(clusterName));
