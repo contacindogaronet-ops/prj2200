@@ -1,23 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:padding="20dp" android:scrollbars="none">
+    android:layout_width="match_parent" android:layout_height="match_parent" android:padding="24dp" android:scrollbars="none">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="100dp">
         
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Preferences" android:textColor="#FFFFFF" android:textSize="26sp" android:textStyle="bold" android:layout_marginBottom="24dp" android:layout_marginTop="10dp"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Config" android:textColor="#FFFFFF" android:textSize="28sp" android:textStyle="bold" android:layout_marginBottom="32dp" android:layout_marginTop="16dp"/>
         
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card_modern" android:padding="20dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginBottom="24dp">
             
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CORE ENGINE" android:textColor="#3B82F6" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CORE ENGINE" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:layout_marginBottom="24dp" android:letterSpacing="0.1"/>
             
-            <Switch android:id="@+id/switchAutoRestart" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart on Crash\nBangkitkan biner otomatis saat mati." android:textColor="#F8FAFC" android:layout_marginBottom="24dp"/>
+            <Switch android:id="@+id/switchAutoRestart" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart" android:textColor="#FFFFFF" android:layout_marginBottom="24dp"/>
             
-            <Switch android:id="@+id/switchWakelock" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CPU Partial WakeLock\nCegah sistem tertidur saat layar mati." android:textColor="#F8FAFC" android:layout_marginBottom="24dp"/>
+            <Switch android:id="@+id/switchWakelock" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CPU Partial WakeLock" android:textColor="#FFFFFF" android:layout_marginBottom="24dp"/>
 
-            <Switch android:id="@+id/switchLowLatency" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Low Latency Mode\nOptimasi Ping: Kunci 2 Big Cores &amp; GC Delay." android:textColor="#F8FAFC" />
+            <Switch android:id="@+id/switchLowLatency" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Low Latency Mode" android:textColor="#FFFFFF" />
             
         </LinearLayout>
-        
-        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="* Perubahan parameter memerlukan restart pada klaster agar aktif." android:textColor="#475569" android:textSize="12sp" android:layout_marginTop="16dp" android:gravity="center"/>
+
+        <!-- 🔴 KUNCI ARSITEKTUR: Panic Button (Kill All) -->
+        <Button android:id="@+id/btnPanic" android:layout_width="match_parent" android:layout_height="60dp" android:text="PANIC: KILL ALL NODES" android:background="@drawable/bg_btn_panic" android:textColor="#FF453A" android:textStyle="bold" android:letterSpacing="0.05"/>
         
     </LinearLayout>
 </ScrollView>

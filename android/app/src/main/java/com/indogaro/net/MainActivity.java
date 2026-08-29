@@ -38,11 +38,14 @@ public class MainActivity extends Activity {
     private View viewHome, viewClusters, viewSettings;
     private TextView navHome, navClusters, navSettings;
     private LinearLayout clusterContainer;
-    private Button btnAddCluster;
+    private TextView btnAddCluster;
+    private Button btnPanic;
     private Switch switchAutoRestart, switchWakelock, switchLowLatency;
     
-    private TextView tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
+    // Telemetry UI
+    private TextView tvUptime, tvRam, tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
     private long lastRxBytes = 0, lastTxBytes = 0;
+    private long appStartTime; // Uptime Tracker
     private Handler telemetryHandler = new Handler(Looper.getMainLooper());
     private Runnable telemetryRunnable;
     
@@ -76,6 +79,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         
+        appStartTime = System.currentTimeMillis();
         prefs = getSharedPreferences("ClusterMatrix", MODE_PRIVATE);
         settingsPrefs = getSharedPreferences("DaemonSettings", MODE_PRIVATE);
         loadClusterList();
@@ -90,6 +94,7 @@ public class MainActivity extends Activity {
         
         clusterContainer = findViewById(R.id.clusterContainer);
         btnAddCluster = findViewById(R.id.btnAddCluster);
+        btnPanic = findViewById(R.id.btnPanic);
         
         switchAutoRestart = findViewById(R.id.switchAutoRestart);
         switchWakelock = findViewById(R.id.switchWakelock);
@@ -103,6 +108,8 @@ public class MainActivity extends Activity {
         switchWakelock.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("WAKELOCK", isChecked).apply());
         switchLowLatency.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("LOW_LATENCY", isChecked).apply());
 
+        tvUptime = findViewById(R.id.tvUptime);
+        tvRam = findViewById(R.id.tvRam);
         tvTemp = findViewById(R.id.tvTemp);
         tvRx = findViewById(R.id.tvRx);
         tvTx = findViewById(R.id.tvTx);
@@ -117,6 +124,21 @@ public class MainActivity extends Activity {
         startTelemetryEngine();
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
+        
+        // 🔴 KUNCI ARSITEKTUR: Panic Button (Membunuh Semua Node Aktif)
+        btnPanic.setOnClickListener(v -> {
+            for (String cluster : clusterList) {
+                Intent intent = new Intent(this, DaemonService.class);
+                intent.setAction("STOP_CLUSTER");
+                intent.putExtra("CLUSTER", cluster);
+                startService(intent);
+            }
+            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("PANIC INITIATED")
+                .setMessage("Semua eksekusi proses telah dihentikan secara paksa.")
+                .setPositiveButton("OK", null)
+                .show();
+        });
 
         if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
@@ -134,6 +156,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 if (viewHome.getVisibility() == View.VISIBLE) {
+                    // Update Bandwidth
                     long currentRx = TrafficStats.getTotalRxBytes();
                     long currentTx = TrafficStats.getTotalTxBytes();
                     tvRx.setText(formatSpeed(currentRx - lastRxBytes));
@@ -141,11 +164,24 @@ public class MainActivity extends Activity {
                     lastRxBytes = currentRx;
                     lastTxBytes = currentTx;
 
+                    // Update Thermal
                     Intent intent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
                     if (intent != null) {
                         float temp = ((float) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)) / 10;
                         tvTemp.setText(temp + " °C");
                     }
+                    
+                    // 🔴 Update Uptime
+                    long uptimeMillis = System.currentTimeMillis() - appStartTime;
+                    int seconds = (int) (uptimeMillis / 1000) % 60;
+                    int minutes = (int) ((uptimeMillis / (1000 * 60)) % 60);
+                    int hours = (int) ((uptimeMillis / (1000 * 60 * 60)) % 24);
+                    tvUptime.setText(String.format(Locale.US, "UPTIME: %02d:%02d:%02d", hours, minutes, seconds));
+
+                    // 🔴 Update RAM Usage (Current App Memory Profile)
+                    long usedMem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024);
+                    tvRam.setText(usedMem + " MB");
+
                     executePingMetrics();
                 }
                 telemetryHandler.postDelayed(this, 1000);
@@ -194,15 +230,15 @@ public class MainActivity extends Activity {
         navSettings.setOnClickListener(v -> switchTab(2));
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Pewarnaan Navigasi Azure Blue
     private void switchTab(int index) {
         viewHome.setVisibility(index == 0 ? View.VISIBLE : View.GONE);
         viewClusters.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
         viewSettings.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
 
-        navHome.setTextColor(Color.parseColor(index == 0 ? "#3B82F6" : "#64748B"));
-        navClusters.setTextColor(Color.parseColor(index == 1 ? "#3B82F6" : "#64748B"));
-        navSettings.setTextColor(Color.parseColor(index == 2 ? "#3B82F6" : "#64748B"));
+        // Simple White for Active, Gray for Inactive (iOS Style)
+        navHome.setTextColor(Color.parseColor(index == 0 ? "#FFFFFF" : "#8E8E93"));
+        navClusters.setTextColor(Color.parseColor(index == 1 ? "#FFFFFF" : "#8E8E93"));
+        navSettings.setTextColor(Color.parseColor(index == 2 ? "#FFFFFF" : "#8E8E93"));
     }
 
     private void loadClusterList() {
@@ -215,10 +251,11 @@ public class MainActivity extends Activity {
     }
 
     private void promptNewCluster() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Create New Node");
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+        builder.setTitle("Create Node");
         final EditText input = new EditText(this);
         input.setHint("e.g. WORKER_01");
+        input.setTextColor(Color.WHITE);
         builder.setView(input);
         builder.setPositiveButton("CREATE", (dialog, which) -> {
             String name = input.getText().toString().trim().toUpperCase();
@@ -228,33 +265,33 @@ public class MainActivity extends Activity {
                 renderDynamicClusters();
             }
         });
-        builder.setNegativeButton("CANCEL", (dialog, which) -> dialog.cancel());
+        builder.setNegativeButton("CANCEL", null);
         builder.show();
     }
 
     private void renderDynamicClusters() {
         int childCount = clusterContainer.getChildCount();
-        for (int i = childCount - 1; i >= 1; i--) clusterContainer.removeViewAt(i); // Sisakan header & tombol
+        for (int i = childCount - 1; i >= 1; i--) clusterContainer.removeViewAt(i); 
 
         for (String clusterName : clusterList) {
             View card = getLayoutInflater().inflate(R.layout.item_cluster, clusterContainer, false);
             
             TextView tvName = card.findViewById(R.id.tvClusterName);
             TextView tvStatus = card.findViewById(R.id.tvClusterStatus);
-            Button btnInject = card.findViewById(R.id.btnClusterInject);
-            Button btnStart = card.findViewById(R.id.btnClusterStart);
-            Button btnStop = card.findViewById(R.id.btnClusterStop);
+            TextView btnInject = card.findViewById(R.id.btnClusterInject);
+            TextView btnStart = card.findViewById(R.id.btnClusterStart);
+            TextView btnStop = card.findViewById(R.id.btnClusterStop);
             Button btnLogs = card.findViewById(R.id.btnClusterLogs);
             Button btnDelete = card.findViewById(R.id.btnClusterDelete);
 
             tvName.setText(clusterName);
             String bins = prefs.getString(clusterName, "");
             int count = bins.isEmpty() ? 0 : bins.split(",").length;
-            tvStatus.setText(count + " Binaries Ready");
+            tvStatus.setText(count + " BINARIES");
 
             btnDelete.setOnClickListener(v -> {
-                new AlertDialog.Builder(this)
-                    .setTitle("Hapus Node")
+                new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Delete Node")
                     .setMessage("Hancurkan cluster " + clusterName + " secara permanen?")
                     .setPositiveButton("HAPUS", (dialog, which) -> {
                         Intent intent = new Intent(this, DaemonService.class);
@@ -309,7 +346,7 @@ public class MainActivity extends Activity {
         
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#090E17")); // Modern Background
+        mainLayout.setBackgroundColor(Color.parseColor("#000000")); // OLED Black
         mainLayout.setPadding(24, 24, 24, 24);
 
         ScrollView scroll = new ScrollView(this);
@@ -317,14 +354,14 @@ public class MainActivity extends Activity {
         scroll.setLayoutParams(scrollParams);
         
         tvActiveLog = new TextView(this);
-        tvActiveLog.setTextColor(Color.parseColor("#10B981")); // Emerald Green Log
+        tvActiveLog.setTextColor(Color.parseColor("#34C759")); // iOS Green
         tvActiveLog.setTextSize(12f);
         tvActiveLog.setTypeface(android.graphics.Typeface.MONOSPACE);
         
         if (logsMap.containsKey(clusterName)) {
             tvActiveLog.setText(logsMap.get(clusterName).toString());
         } else {
-            tvActiveLog.setText("> Terminal Interaktif untuk node " + clusterName + " terhubung.\n> Lokasi: " + getFilesDir().getAbsolutePath() + "\n");
+            tvActiveLog.setText("> Terminal Interaktif (Node: " + clusterName + ")\n> Path: " + getFilesDir().getAbsolutePath() + "\n");
         }
         scroll.addView(tvActiveLog);
 
@@ -335,14 +372,14 @@ public class MainActivity extends Activity {
         EditText inputCmd = new EditText(this);
         inputCmd.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
         inputCmd.setHint("sh: ls -la atau cp /sdcard/...");
-        inputCmd.setHintTextColor(Color.parseColor("#475569"));
+        inputCmd.setHintTextColor(Color.parseColor("#3A3A3C"));
         inputCmd.setTextColor(Color.WHITE);
         inputCmd.setTextSize(12f);
         inputCmd.setTypeface(android.graphics.Typeface.MONOSPACE);
 
         Button btnSend = new Button(this);
         btnSend.setText("EXEC");
-        btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#3B82F6")));
+        btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1C1C1E")));
         btnSend.setTextColor(Color.WHITE);
 
         btnSend.setOnClickListener(v -> {
@@ -355,8 +392,8 @@ public class MainActivity extends Activity {
 
         Button btnClose = new Button(this);
         btnClose.setText("X");
-        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1E293B")));
-        btnClose.setTextColor(Color.parseColor("#EF4444"));
+        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1C1C1E")));
+        btnClose.setTextColor(Color.parseColor("#FF453A"));
         
         inputLayout.addView(inputCmd);
         inputLayout.addView(btnSend);

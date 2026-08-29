@@ -1,41 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:padding="20dp" android:scrollbars="none">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="90dp">
+    android:layout_width="match_parent" android:layout_height="match_parent" android:padding="24dp" android:scrollbars="none">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="100dp">
         
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="24dp" android:layout_marginTop="10dp">
-            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="System Status" android:textColor="#FFFFFF" android:textSize="26sp" android:textStyle="bold"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🟢 ONLINE" android:textColor="#10B981" android:textSize="12sp" android:textStyle="bold" android:background="@drawable/bg_btn_subtle" android:paddingHorizontal="12dp" android:paddingVertical="6dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="32dp" android:layout_marginTop="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Indogo Daemon" android:textColor="#FFFFFF" android:textSize="28sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/tvUptime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UPTIME: 00:00:00" android:textColor="#8E8E93" android:textSize="12sp" android:layout_marginTop="4dp" android:letterSpacing="0.1"/>
         </LinearLayout>
         
-        <!-- Thermal & Local Ping (Grid Row 1) -->
+        <!-- Thermal & RAM -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_card_modern" android:padding="20dp" android:layout_marginRight="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌡️ THERMAL" android:textColor="#94A3B8" android:textSize="12sp" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvTemp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- °C" android:textColor="#F8FAFC" android:textSize="22sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginRight="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="THERMAL" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvTemp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- °C" android:textColor="#FFFFFF" android:textSize="24sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_card_modern" android:padding="20dp" android:layout_marginLeft="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⚡ LOCAL PING" android:textColor="#94A3B8" android:textSize="12sp" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvPingLocal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#10B981" android:textSize="22sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginLeft="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DAEMON RAM" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvRam" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- MB" android:textColor="#FFFFFF" android:textSize="24sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Bandwidth RX & TX (Grid Row 2) -->
+        <!-- Bandwidth -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_card_modern" android:padding="20dp" android:layout_marginRight="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⬇️ DOWNLOAD" android:textColor="#94A3B8" android:textSize="12sp" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvRx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#3B82F6" android:textSize="20sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginRight="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RX (DOWN)" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvRx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#FFFFFF" android:textSize="18sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_card_modern" android:padding="20dp" android:layout_marginLeft="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⬆️ UPLOAD" android:textColor="#94A3B8" android:textSize="12sp" android:textStyle="bold"/>
-                <TextView android:id="@+id/tvTx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#8B5CF6" android:textSize="20sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginLeft="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TX (UP)" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvTx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#FFFFFF" android:textSize="18sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Global Ping (Full Width) -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card_modern" android:padding="20dp" android:layout_marginBottom="16dp">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌐 GLOBAL LATENCY (8.8.8.8)" android:textColor="#94A3B8" android:textSize="12sp" android:textStyle="bold"/>
-            <TextView android:id="@+id/tvPingGlobal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#EF4444" android:textSize="22sp" android:textStyle="bold" android:layout_marginTop="8dp"/>
+        <!-- Ping -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginRight="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LOCAL PING" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvPingLocal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#34C759" android:textSize="20sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginLeft="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GLOBAL PING" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvPingGlobal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#FF3B30" android:textSize="20sp" android:layout_marginTop="8dp"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
