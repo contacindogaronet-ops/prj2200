@@ -50,7 +50,6 @@ public class IndogoVpnService extends VpnService {
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
             vpnInterface = builder.establish();
 
-            // 🔴 KUNCI ARSITEKTUR: Ekstraksi Paksa Kernel File Descriptor (FD) via Reflection
             int fd = -1;
             try {
                 java.lang.reflect.Field field = java.io.FileDescriptor.class.getDeclaredField("descriptor");
@@ -61,9 +60,9 @@ public class IndogoVpnService extends VpnService {
                 return;
             }
 
-            // Sintesis Konfigurasi L3 Tun2Socks
+            // 🔴 KUNCI ARSITEKTUR: Format YAML diubah ke angka (1/0) agar C++ Parser tidak meledak
             File configFile = new File(getFilesDir(), "tun2socks.yml");
-            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
+            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: 1\n  ipv6: 0\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
             fos.write(yaml.getBytes());
             fos.close();
@@ -76,15 +75,15 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notif);
 
             broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS-Level Tunnel Established.");
-            broadcastLog(cluster, "🚀 [TUN2SOCKS] Mesin C++ (hev-socks5-tunnel) mengambil alih Kernel FD: " + fd);
+            broadcastLog(cluster, "🚀 [TUN2SOCKS] Menyerahkan kontrol Kernel FD (" + fd + ") ke C++ Engine...");
 
-            // Eksekusi Mesin JNI di Thread Terpisah (Karena bersifat Blocking)
+            // 🔴 KUNCI ARSITEKTUR: Throwable Catcher. Jika C++ meledak, OS Android tidak akan Force Close!
             final int finalFd = fd;
             new Thread(() -> {
                 try {
-                    hev.socks5.tunnel.Tunnel.TunnelMain(configFile.getAbsolutePath(), finalFd);
-                } catch (Exception e) {
-                    broadcastLog(cluster, "🛑 JNI Crash: " + e.getMessage());
+                    hev.socks5.Tunnel.TunnelMain(configFile.getAbsolutePath(), finalFd);
+                } catch (Throwable t) { // Menggunakan Throwable untuk menangkap java.lang.Error (UnsatisfiedLinkError)
+                    broadcastLog(cluster, "🛑 JNI FATAL CRASH: " + t.getMessage());
                 }
             }).start();
 
@@ -96,7 +95,7 @@ public class IndogoVpnService extends VpnService {
 
     private void stopVpnTunnel() {
         new Thread(() -> {
-            try { hev.socks5.tunnel.Tunnel.TunnelQuit(); } catch (Exception e) {}
+            try { hev.socks5.Tunnel.TunnelQuit(); } catch (Throwable t) {}
         }).start();
 
         try {
