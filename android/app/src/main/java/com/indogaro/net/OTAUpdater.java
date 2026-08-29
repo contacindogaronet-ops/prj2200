@@ -26,7 +26,7 @@ import java.net.URL;
 
 public class OTAUpdater {
     private Activity activity;
-    private static final String CURRENT_VERSION = "v3.0"; // Versi Hardcode saat ini
+    private static final String CURRENT_VERSION = "v3.0"; 
     private static final String GITHUB_API = "https://api.github.com/repos/contacindogaronet-ops/prj2200/releases/latest";
 
     public OTAUpdater(Activity activity) {
@@ -38,6 +38,12 @@ public class OTAUpdater {
             try {
                 HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_API).openConnection();
                 conn.setRequestProperty("User-Agent", "Indogo-OTA-Engine");
+                conn.setConnectTimeout(10000);
+                
+                if (conn.getResponseCode() != 200) {
+                    throw new Exception("GitHub API menolak koneksi (Rate Limit / Not Found)");
+                }
+                
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder response = new StringBuilder();
                 String line;
@@ -48,6 +54,11 @@ public class OTAUpdater {
                 String latestVersion = json.getString("tag_name");
                 String changelog = json.getString("body");
                 JSONArray assets = json.getJSONArray("assets");
+                
+                if (assets.length() == 0) {
+                    throw new Exception("Release ditemukan, tetapi tidak ada file APK di dalamnya.");
+                }
+                
                 String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
 
                 new Handler(Looper.getMainLooper()).post(() -> {
@@ -62,7 +73,10 @@ public class OTAUpdater {
                 });
             } catch (Exception e) {
                 new Handler(Looper.getMainLooper()).post(() -> 
-                    new AlertDialog.Builder(activity).setMessage("OTA Error: " + e.getMessage()).show()
+                    new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("OTA Engine Error")
+                        .setMessage(e.getMessage())
+                        .setPositiveButton("OK", null).show()
                 );
             }
         }).start();
@@ -96,17 +110,40 @@ public class OTAUpdater {
         dialog.show();
     }
 
+    // 🔴 KUNCI ARSITEKTUR: Penanganan Ekstraksi Redirect Lintas Domain
     private void downloadAndInstall(String urlString, ProgressBar progressBar, TextView tvProgressText, AlertDialog dialog) {
         new Thread(() -> {
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setInstanceFollowRedirects(false); // Kita akan lacak manual
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(15000);
                 conn.connect();
+
+                int status = conn.getResponseCode();
+                // Jika GitHub mengalihkan ke server S3 AWS
+                if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
+                    String redirectUrl = conn.getHeaderField("Location");
+                    url = new URL(redirectUrl);
+                    conn = (HttpURLConnection) url.openConnection();
+                    conn.setConnectTimeout(15000);
+                    conn.setReadTimeout(15000);
+                    conn.connect();
+                }
+
+                if (conn.getResponseCode() != 200) {
+                    throw new Exception("Gagal terhubung ke server unduhan.");
+                }
+
                 int fileLength = conn.getContentLength();
 
                 File downloadDir = new File(activity.getExternalFilesDir(null), "Download");
                 if (!downloadDir.exists()) downloadDir.mkdirs();
                 File outputFile = new File(downloadDir, "indogo-update.apk");
+                
+                // Hapus file lama jika ada agar tidak korup
+                if (outputFile.exists()) outputFile.delete(); 
 
                 InputStream input = conn.getInputStream();
                 FileOutputStream output = new FileOutputStream(outputFile);
