@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UNIVERSAL SETTINGS" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="24dp"/>
+    <Switch android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart on Crash" android:textColor="#AAAAAA" android:layout_marginBottom="16dp"/>
+    <Switch android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aggressive RAM Allocation" android:textColor="#AAAAAA" android:layout_marginBottom="16dp"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="[ Pengaturan ini akan diterapkan pada iterasi berikutnya ]" android:textColor="#555555" android:textSize="12sp" android:layout_marginTop="30dp"/>
+</LinearLayout>

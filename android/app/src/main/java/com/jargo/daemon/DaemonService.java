@@ -16,20 +16,18 @@ import java.util.Map;
 
 public class DaemonService extends Service {
     private final Map<String, Process> activeProcesses = new HashMap<>();
-    private static final String CHANNEL_ID = "DAEMON_CHANNEL";
     private int runningCount = 0;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        createNotificationChannel();
-        Notification notif = buildNotification("KUL Daemon Standby", "Menunggu instruksi klaster...");
-        
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(1, notif);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel("DAEMON", "Daemon", NotificationManager.IMPORTANCE_LOW);
+            getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
+        Notification notif = new Notification.Builder(this, "DAEMON").setContentTitle("KUL Daemon").setContentText("Standby...").setSmallIcon(android.R.drawable.ic_media_play).build();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        else startForeground(1, notif);
     }
 
     @Override
@@ -40,8 +38,7 @@ public class DaemonService extends Service {
             String bins = intent.getStringExtra("BINS"); 
 
             if ("START_CLUSTER".equals(action) && bins != null && !bins.isEmpty()) {
-                String[] binArray = bins.split(",");
-                for (String bin : binArray) executeBinary(cluster, bin);
+                for (String bin : bins.split(",")) executeBinary(cluster, bin);
             } else if ("STOP_CLUSTER".equals(action)) {
                 killCluster(cluster);
             }
@@ -54,19 +51,9 @@ public class DaemonService extends Service {
         if (activeProcesses.containsKey(processKey)) return;
 
         File binFile = new File(getFilesDir(), binName);
-        if (!binFile.exists()) {
-            broadcastLog("❌ [" + cluster + "] Biner hilang: " + binName);
-            return;
-        }
+        if (!binFile.exists()) return;
 
-        // 🔴 KUNCI ARSITEKTUR: Eksekusi CHMOD 777 mentah via Shell
-        try {
-            Runtime.getRuntime().exec("chmod 777 " + binFile.getAbsolutePath()).waitFor();
-        } catch (Exception e) {
-            broadcastLog("⚠️ [" + cluster + "] Peringatan: Eksekusi chmod shell gagal.");
-        }
-        
-        // Fallback Java (untuk berjaga-jaga)
+        try { Runtime.getRuntime().exec("chmod 777 " + binFile.getAbsolutePath()).waitFor(); } catch (Exception e) {}
         binFile.setExecutable(true, false);
 
         new Thread(() -> {
@@ -78,72 +65,40 @@ public class DaemonService extends Service {
                 Process process = pb.start();
                 activeProcesses.put(processKey, process);
                 
-                runningCount++;
-                updateNotification();
-                broadcastLog("🚀 [" + cluster + "] Inisiasi biner: " + binName);
-
+                broadcastLog(cluster, "🚀 Menginisiasi biner: " + binName);
                 BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    broadcastLog("[" + binName + "] " + line);
+                    broadcastLog(cluster, "[" + binName + "] " + line);
                 }
                 
                 process.waitFor();
                 activeProcesses.remove(processKey);
-                runningCount--;
-                updateNotification();
-                broadcastLog("💀 [" + cluster + "] Biner berhenti: " + binName);
-
+                broadcastLog(cluster, "💀 Biner berhenti: " + binName);
             } catch (Exception e) {
-                broadcastLog("🛑 [" + cluster + "] Crash: " + e.getMessage());
+                broadcastLog(cluster, "🛑 Crash: " + e.getMessage());
             }
         }).start();
     }
 
     private void killCluster(String cluster) {
-        broadcastLog("⚠️ [" + cluster + "] Menerima sinyal pemusnahan massal...");
+        broadcastLog(cluster, "⚠️ Menerima sinyal pemusnahan massal...");
         for (Map.Entry<String, Process> entry : activeProcesses.entrySet()) {
             if (entry.getKey().startsWith(cluster + "_")) {
                 entry.getValue().destroy();
-                broadcastLog("🔪 Membunuh: " + entry.getKey());
+                broadcastLog(cluster, "🔪 Membunuh: " + entry.getKey());
             }
         }
     }
 
-    private void broadcastLog(String msg) {
+    // 🔴 KUNCI ARSITEKTUR: Mengirim ID Cluster secara terpisah ke Broadcast
+    private void broadcastLog(String cluster, String msg) {
         Intent intent = new Intent("DAEMON_LOG");
+        intent.putExtra("cluster", cluster);
         intent.putExtra("log", msg);
         sendBroadcast(intent);
     }
 
-    private void createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID, "Daemon Manager", NotificationManager.IMPORTANCE_LOW);
-            getSystemService(NotificationManager.class).createNotificationChannel(channel);
-        }
-    }
-
-    private Notification buildNotification(String title, String text) {
-        Notification.Builder builder = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSmallIcon(android.R.drawable.ic_media_play);
-        return builder.build();
-    }
-
-    private void updateNotification() {
-        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        manager.notify(1, buildNotification("KUL Daemon Active", "Binaries running: " + runningCount));
-    }
-
     @Override
     public IBinder onBind(Intent intent) { return null; }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        for (Process p : activeProcesses.values()) if (p != null) p.destroy();
-        activeProcesses.clear();
-    }
 }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:background="#1A1A1C" android:padding="16dp" android:layout_marginBottom="16dp">
+    
+    <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp">
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/tvClusterName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CLUSTER NAME" android:textColor="#00E676" android:textStyle="bold" android:textSize="18sp"/>
+            <TextView android:id="@+id/tvClusterStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 Binaries Injected" android:textColor="#888888" android:textSize="12sp"/>
+        </LinearLayout>
+        <!-- Tombol Log Khusus Klaster Ini -->
+        <Button android:id="@+id/btnClusterLogs" android:layout_width="wrap_content" android:layout_height="40dp" android:layout_alignParentRight="true" android:layout_centerVertical="true" android:text="📝 LOGS" android:backgroundTint="#333333" android:textColor="#FFB300" android:textSize="10sp"/>
+    </RelativeLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="3">
+        <Button android:id="@+id/btnClusterInject" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="[+] INJECT" android:backgroundTint="#252525" android:textColor="#00BBFF" android:textSize="12sp" android:layout_marginRight="4dp"/>
+        <Button android:id="@+id/btnClusterStart" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="▶ START" android:backgroundTint="#252525" android:textColor="#00E676" android:textSize="12sp" android:layout_marginHorizontal="2dp"/>
+        <Button android:id="@+id/btnClusterStop" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" android:text="■ STOP" android:backgroundTint="#252525" android:textColor="#FF3D00" android:textSize="12sp" android:layout_marginLeft="4dp"/>
+    </LinearLayout>
+</LinearLayout>
