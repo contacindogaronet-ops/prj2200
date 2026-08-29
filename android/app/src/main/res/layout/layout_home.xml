@@ -3,44 +3,41 @@
     android:layout_width="match_parent" android:layout_height="match_parent" android:padding="24dp" android:scrollbars="none">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="100dp">
         
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="32dp" android:layout_marginTop="16dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="24dp" android:layout_marginTop="16dp">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Indogo Daemon" android:textColor="#FFFFFF" android:textSize="28sp" android:textStyle="bold"/>
             <TextView android:id="@+id/tvUptime" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UPTIME: 00:00:00" android:textColor="#8E8E93" android:textSize="12sp" android:layout_marginTop="4dp" android:letterSpacing="0.1"/>
         </LinearLayout>
         
-        <!-- Thermal & RAM -->
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginRight="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="THERMAL" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
-                <TextView android:id="@+id/tvTemp" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- °C" android:textColor="#FFFFFF" android:textSize="24sp" android:layout_marginTop="8dp"/>
-            </LinearLayout>
-            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginLeft="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DAEMON RAM" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
-                <TextView android:id="@+id/tvRam" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- MB" android:textColor="#FFFFFF" android:textSize="24sp" android:layout_marginTop="8dp"/>
-            </LinearLayout>
+        <!-- RAM Usage dengan Grafik -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginBottom="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DAEMON RAM ALLOCATION" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+            <TextView android:id="@+id/tvRam" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- MB" android:textColor="#FFFFFF" android:textSize="24sp" android:layout_marginTop="4dp"/>
+            <com.indogaro.net.TelemetryGraphView android:id="@+id/graphRam" android:layout_width="match_parent" android:layout_height="60dp" android:layout_marginTop="12dp"/>
         </LinearLayout>
 
-        <!-- Bandwidth -->
+        <!-- Bandwidth RX/TX dengan Grafik -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginRight="8dp">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RX (DOWN)" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
-                <TextView android:id="@+id/tvRx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#FFFFFF" android:textSize="18sp" android:layout_marginTop="8dp"/>
+                <TextView android:id="@+id/tvRx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#FFFFFF" android:textSize="18sp" android:layout_marginTop="4dp"/>
+                <com.indogaro.net.TelemetryGraphView android:id="@+id/graphRx" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="12dp"/>
             </LinearLayout>
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginLeft="8dp">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TX (UP)" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
-                <TextView android:id="@+id/tvTx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#FFFFFF" android:textSize="18sp" android:layout_marginTop="8dp"/>
+                <TextView android:id="@+id/tvTx" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 KB/s" android:textColor="#FFFFFF" android:textSize="18sp" android:layout_marginTop="4dp"/>
+                <com.indogaro.net.TelemetryGraphView android:id="@+id/graphTx" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="12dp"/>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Ping -->
+        <!-- Total Data Usage & Ping -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginRight="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LOCAL PING" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
-                <TextView android:id="@+id/tvPingLocal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#34C759" android:textSize="20sp" android:layout_marginTop="8dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TOTAL DATA" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvTotalData" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- MB" android:textColor="#0A84FF" android:textSize="20sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
             <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginLeft="8dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GLOBAL PING" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
-                <TextView android:id="@+id/tvPingGlobal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#FF3B30" android:textSize="20sp" android:layout_marginTop="8dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LATENCY" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+                <TextView android:id="@+id/tvPingLocal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="-- ms" android:textColor="#34C759" android:textSize="20sp" android:layout_marginTop="8dp"/>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

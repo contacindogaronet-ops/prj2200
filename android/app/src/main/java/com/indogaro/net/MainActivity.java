@@ -10,7 +10,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.TrafficStats;
-import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -43,9 +42,12 @@ public class MainActivity extends Activity {
     private Switch switchAutoRestart, switchWakelock, switchLowLatency;
     
     // Telemetry UI
-    private TextView tvUptime, tvRam, tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
+    private TextView tvUptime, tvRam, tvRx, tvTx, tvTotalData, tvPingLocal;
+    private TelemetryGraphView graphRam, graphRx, graphTx;
+    
     private long lastRxBytes = 0, lastTxBytes = 0;
-    private long appStartTime; // Uptime Tracker
+    private long appStartTime;
+    private int myUid;
     private Handler telemetryHandler = new Handler(Looper.getMainLooper());
     private Runnable telemetryRunnable;
     
@@ -80,6 +82,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         
         appStartTime = System.currentTimeMillis();
+        myUid = android.os.Process.myUid(); // 🔴 Dapatkan UID Aplikasi ini
+        
         prefs = getSharedPreferences("ClusterMatrix", MODE_PRIVATE);
         settingsPrefs = getSharedPreferences("DaemonSettings", MODE_PRIVATE);
         loadClusterList();
@@ -110,14 +114,25 @@ public class MainActivity extends Activity {
 
         tvUptime = findViewById(R.id.tvUptime);
         tvRam = findViewById(R.id.tvRam);
-        tvTemp = findViewById(R.id.tvTemp);
         tvRx = findViewById(R.id.tvRx);
         tvTx = findViewById(R.id.tvTx);
+        tvTotalData = findViewById(R.id.tvTotalData);
         tvPingLocal = findViewById(R.id.tvPingLocal);
-        tvPingGlobal = findViewById(R.id.tvPingGlobal);
         
-        lastRxBytes = TrafficStats.getTotalRxBytes();
-        lastTxBytes = TrafficStats.getTotalTxBytes();
+        graphRam = findViewById(R.id.graphRam);
+        graphRx = findViewById(R.id.graphRx);
+        graphTx = findViewById(R.id.graphTx);
+        
+        // Atur warna grafik
+        graphRam.setLineColor("#FF9F0A"); // Orange
+        graphRx.setLineColor("#34C759");  // Green
+        graphTx.setLineColor("#5E5CE6");  // Purple
+
+        // Inisialisasi Data Jaringan UID
+        long uidRx = TrafficStats.getUidRxBytes(myUid);
+        long uidTx = TrafficStats.getUidTxBytes(myUid);
+        lastRxBytes = (uidRx == TrafficStats.UNSUPPORTED) ? 0 : uidRx;
+        lastTxBytes = (uidTx == TrafficStats.UNSUPPORTED) ? 0 : uidTx;
 
         setupNavigation();
         renderDynamicClusters();
@@ -125,7 +140,6 @@ public class MainActivity extends Activity {
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
         
-        // 🔴 KUNCI ARSITEKTUR: Panic Button (Membunuh Semua Node Aktif)
         btnPanic.setOnClickListener(v -> {
             for (String cluster : clusterList) {
                 Intent intent = new Intent(this, DaemonService.class);
@@ -156,31 +170,39 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 if (viewHome.getVisibility() == View.VISIBLE) {
-                    // Update Bandwidth
-                    long currentRx = TrafficStats.getTotalRxBytes();
-                    long currentTx = TrafficStats.getTotalTxBytes();
-                    tvRx.setText(formatSpeed(currentRx - lastRxBytes));
-                    tvTx.setText(formatSpeed(currentTx - lastTxBytes));
-                    lastRxBytes = currentRx;
-                    lastTxBytes = currentTx;
-
-                    // Update Thermal
-                    Intent intent = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
-                    if (intent != null) {
-                        float temp = ((float) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)) / 10;
-                        tvTemp.setText(temp + " °C");
-                    }
                     
-                    // 🔴 Update Uptime
+                    // 🔴 Dapatkan data jaringan KHUSUS aplikasi/bot ini
+                    long currentRx = TrafficStats.getUidRxBytes(myUid);
+                    long currentTx = TrafficStats.getUidTxBytes(myUid);
+                    
+                    if (currentRx != TrafficStats.UNSUPPORTED) {
+                        long diffRx = currentRx - lastRxBytes;
+                        long diffTx = currentTx - lastTxBytes;
+                        
+                        tvRx.setText(formatSpeed(diffRx));
+                        tvTx.setText(formatSpeed(diffTx));
+                        
+                        // Push ke grafik
+                        graphRx.addDataPoint(diffRx);
+                        graphTx.addDataPoint(diffTx);
+                        
+                        // Kalkulasi Total Data Digunakan (RX + TX)
+                        tvTotalData.setText(formatDataSize(currentRx + currentTx));
+                        
+                        lastRxBytes = currentRx;
+                        lastTxBytes = currentTx;
+                    }
+
                     long uptimeMillis = System.currentTimeMillis() - appStartTime;
                     int seconds = (int) (uptimeMillis / 1000) % 60;
                     int minutes = (int) ((uptimeMillis / (1000 * 60)) % 60);
                     int hours = (int) ((uptimeMillis / (1000 * 60 * 60)) % 24);
                     tvUptime.setText(String.format(Locale.US, "UPTIME: %02d:%02d:%02d", hours, minutes, seconds));
 
-                    // 🔴 Update RAM Usage (Current App Memory Profile)
+                    // RAM Usage
                     long usedMem = (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / (1024 * 1024);
                     tvRam.setText(usedMem + " MB");
+                    graphRam.addDataPoint(usedMem);
 
                     executePingMetrics();
                 }
@@ -195,14 +217,18 @@ public class MainActivity extends Activity {
         if (bytes < 1024 * 1024) return (bytes / 1024) + " KB/s";
         return String.format(Locale.US, "%.2f MB/s", (float) bytes / (1024 * 1024));
     }
+    
+    private String formatDataSize(long bytes) {
+        if (bytes < 1024 * 1024) return (bytes / 1024) + " KB";
+        if (bytes < 1024 * 1024 * 1024) return String.format(Locale.US, "%.2f MB", (float) bytes / (1024 * 1024));
+        return String.format(Locale.US, "%.2f GB", (float) bytes / (1024 * 1024 * 1024));
+    }
 
     private void executePingMetrics() {
         new Thread(() -> {
             String local = getPing("127.0.0.1");
-            String global = getPing("8.8.8.8");
             runOnUiThread(() -> {
                 if (tvPingLocal != null) tvPingLocal.setText(local);
-                if (tvPingGlobal != null) tvPingGlobal.setText(global);
             });
         }).start();
     }
@@ -235,7 +261,6 @@ public class MainActivity extends Activity {
         viewClusters.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
         viewSettings.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
 
-        // Simple White for Active, Gray for Inactive (iOS Style)
         navHome.setTextColor(Color.parseColor(index == 0 ? "#FFFFFF" : "#8E8E93"));
         navClusters.setTextColor(Color.parseColor(index == 1 ? "#FFFFFF" : "#8E8E93"));
         navSettings.setTextColor(Color.parseColor(index == 2 ? "#FFFFFF" : "#8E8E93"));
@@ -346,7 +371,7 @@ public class MainActivity extends Activity {
         
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#000000")); // OLED Black
+        mainLayout.setBackgroundColor(Color.parseColor("#000000"));
         mainLayout.setPadding(24, 24, 24, 24);
 
         ScrollView scroll = new ScrollView(this);
@@ -354,7 +379,7 @@ public class MainActivity extends Activity {
         scroll.setLayoutParams(scrollParams);
         
         tvActiveLog = new TextView(this);
-        tvActiveLog.setTextColor(Color.parseColor("#34C759")); // iOS Green
+        tvActiveLog.setTextColor(Color.parseColor("#34C759"));
         tvActiveLog.setTextSize(12f);
         tvActiveLog.setTypeface(android.graphics.Typeface.MONOSPACE);
         
