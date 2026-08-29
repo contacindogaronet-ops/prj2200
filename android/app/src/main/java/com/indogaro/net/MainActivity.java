@@ -194,14 +194,15 @@ public class MainActivity extends Activity {
         navSettings.setOnClickListener(v -> switchTab(2));
     }
 
+    // 🔴 KUNCI ARSITEKTUR: Pewarnaan Navigasi Azure Blue
     private void switchTab(int index) {
         viewHome.setVisibility(index == 0 ? View.VISIBLE : View.GONE);
         viewClusters.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
         viewSettings.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
 
-        navHome.setTextColor(Color.parseColor(index == 0 ? "#38BDF8" : "#94A3B8"));
-        navClusters.setTextColor(Color.parseColor(index == 1 ? "#38BDF8" : "#94A3B8"));
-        navSettings.setTextColor(Color.parseColor(index == 2 ? "#38BDF8" : "#94A3B8"));
+        navHome.setTextColor(Color.parseColor(index == 0 ? "#3B82F6" : "#64748B"));
+        navClusters.setTextColor(Color.parseColor(index == 1 ? "#3B82F6" : "#64748B"));
+        navSettings.setTextColor(Color.parseColor(index == 2 ? "#3B82F6" : "#64748B"));
     }
 
     private void loadClusterList() {
@@ -215,9 +216,9 @@ public class MainActivity extends Activity {
 
     private void promptNewCluster() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Create New Cluster");
+        builder.setTitle("Create New Node");
         final EditText input = new EditText(this);
-        input.setHint("e.g. CORE_PROXY");
+        input.setHint("e.g. WORKER_01");
         builder.setView(input);
         builder.setPositiveButton("CREATE", (dialog, which) -> {
             String name = input.getText().toString().trim().toUpperCase();
@@ -233,7 +234,7 @@ public class MainActivity extends Activity {
 
     private void renderDynamicClusters() {
         int childCount = clusterContainer.getChildCount();
-        for (int i = childCount - 1; i >= 2; i--) clusterContainer.removeViewAt(i);
+        for (int i = childCount - 1; i >= 1; i--) clusterContainer.removeViewAt(i); // Sisakan header & tombol
 
         for (String clusterName : clusterList) {
             View card = getLayoutInflater().inflate(R.layout.item_cluster, clusterContainer, false);
@@ -249,12 +250,12 @@ public class MainActivity extends Activity {
             tvName.setText(clusterName);
             String bins = prefs.getString(clusterName, "");
             int count = bins.isEmpty() ? 0 : bins.split(",").length;
-            tvStatus.setText(count + " Binaries Injected");
+            tvStatus.setText(count + " Binaries Ready");
 
             btnDelete.setOnClickListener(v -> {
                 new AlertDialog.Builder(this)
-                    .setTitle("Pemusnahan Klaster")
-                    .setMessage("Hentikan dan hapus klaster " + clusterName + " secara permanen?")
+                    .setTitle("Hapus Node")
+                    .setMessage("Hancurkan cluster " + clusterName + " secara permanen?")
                     .setPositiveButton("HAPUS", (dialog, which) -> {
                         Intent intent = new Intent(this, DaemonService.class);
                         intent.setAction("STOP_CLUSTER");
@@ -308,7 +309,7 @@ public class MainActivity extends Activity {
         
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#0F172A"));
+        mainLayout.setBackgroundColor(Color.parseColor("#090E17")); // Modern Background
         mainLayout.setPadding(24, 24, 24, 24);
 
         ScrollView scroll = new ScrollView(this);
@@ -316,14 +317,14 @@ public class MainActivity extends Activity {
         scroll.setLayoutParams(scrollParams);
         
         tvActiveLog = new TextView(this);
-        tvActiveLog.setTextColor(Color.parseColor("#4ADE80")); 
+        tvActiveLog.setTextColor(Color.parseColor("#10B981")); // Emerald Green Log
         tvActiveLog.setTextSize(12f);
         tvActiveLog.setTypeface(android.graphics.Typeface.MONOSPACE);
         
         if (logsMap.containsKey(clusterName)) {
             tvActiveLog.setText(logsMap.get(clusterName).toString());
         } else {
-            tvActiveLog.setText("> Terminal Interaktif untuk klaster " + clusterName + " siap.\n> Path: " + getFilesDir().getAbsolutePath() + "\n");
+            tvActiveLog.setText("> Terminal Interaktif untuk node " + clusterName + " terhubung.\n> Lokasi: " + getFilesDir().getAbsolutePath() + "\n");
         }
         scroll.addView(tvActiveLog);
 
@@ -341,7 +342,7 @@ public class MainActivity extends Activity {
 
         Button btnSend = new Button(this);
         btnSend.setText("EXEC");
-        btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#334155")));
+        btnSend.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#3B82F6")));
         btnSend.setTextColor(Color.WHITE);
 
         btnSend.setOnClickListener(v -> {
@@ -354,8 +355,8 @@ public class MainActivity extends Activity {
 
         Button btnClose = new Button(this);
         btnClose.setText("X");
-        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#7F1D1D")));
-        btnClose.setTextColor(Color.WHITE);
+        btnClose.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1E293B")));
+        btnClose.setTextColor(Color.parseColor("#EF4444"));
         
         inputLayout.addView(inputCmd);
         inputLayout.addView(btnSend);
