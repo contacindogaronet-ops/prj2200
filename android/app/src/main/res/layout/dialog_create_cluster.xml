@@ -14,7 +14,7 @@
         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
             android:text="NODE IDENTIFIER" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
         <EditText android:id="@+id/inputClusterName" android:layout_width="match_parent" android:layout_height="50dp" 
-            android:hint="e.g. SOCKS_SG or BOT_TG" android:hintTextColor="#475569" android:textColor="#FFFFFF" android:textSize="14sp"
+            android:hint="e.g. SOCKS_SG or BOT_TG" android:textColorHint="#475569" android:textColor="#FFFFFF" android:textSize="14sp"
             android:background="@drawable/bg_segmented_capsule" android:paddingHorizontal="16dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp"/>
 
         <!-- Pemilihan Tipe Klaster -->
@@ -53,7 +53,7 @@
                 <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginLeft="6dp">
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PORT" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold"/>
                     <EditText android:id="@+id/inputProxyPort" android:layout_width="match_parent" android:layout_height="48dp" 
-                        android:hint="10808" android:hintTextColor="#475569" android:textColor="#FFFFFF" android:textSize="13sp" android:inputType="number" android:background="@drawable/bg_segmented_capsule" android:paddingHorizontal="12dp" android:layout_marginTop="6dp"/>
+                        android:hint="10808" android:textColorHint="#475569" android:textColor="#FFFFFF" android:textSize="13sp" android:inputType="number" android:background="@drawable/bg_segmented_capsule" android:paddingHorizontal="12dp" android:layout_marginTop="6dp"/>
                 </LinearLayout>
             </LinearLayout>
             
