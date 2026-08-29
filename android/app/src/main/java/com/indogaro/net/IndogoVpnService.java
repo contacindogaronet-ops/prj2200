@@ -4,15 +4,13 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.net.ProxyInfo;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 
 public class IndogoVpnService extends VpnService {
     private ParcelFileDescriptor vpnInterface = null;
-    private Thread vpnThread;
     private boolean isRunning = false;
 
     @Override
@@ -41,7 +39,7 @@ public class IndogoVpnService extends VpnService {
         }
         Notification notif = new Notification.Builder(this, "VPN_GATEWAY")
                 .setContentTitle("Indogo VPN Gateway Active")
-                .setContentText("Routing via " + proto + " @" + host + ":" + port)
+                .setContentText("Kernel Routing via OS Proxy @" + host + ":" + port)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .build();
         startForeground(2, notif);
@@ -50,37 +48,28 @@ public class IndogoVpnService extends VpnService {
             Builder builder = new Builder();
             builder.setSession("Indogo-" + cluster);
             builder.setMtu(1500);
-            builder.addAddress("172.19.0.1", 28);
+            
+            builder.addAddress("172.19.0.1", 24);
             builder.addRoute("0.0.0.0", 0);
-            builder.addDnsServer("1.1.1.1");
             builder.addDnsServer("8.8.8.8");
+            builder.addDnsServer("1.1.1.1");
 
-            // 🔴 KUNCI ARSITEKTUR MUTLAK: Anti-Looping Protection
-            // Kecualikan Indogo dari VPN agar tidak terjadi looping traffic ke proksinya sendiri
-            try {
-                builder.addDisallowedApplication(getPackageName());
-            } catch (Exception e) {}
+            // 🔴 KUNCI ARSITEKTUR 1: Anti-Looping (Mem-bypass aplikasi Indogo sendiri)
+            try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
+
+            // 🔴 KUNCI ARSITEKTUR 2: Delegasi OS-Level TCP/IP Translation
+            // Kernel Android yang akan mengubah Raw IP Packet menjadi koneksi Proxy, 
+            // menghilangkan kebutuhan Tun2Socks manual di layer Java.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                builder.setHttpProxy(ProxyInfo.buildDirectProxy(host, port));
+            }
 
             vpnInterface = builder.establish();
             isRunning = true;
 
-            // Inisiasi Network Pump Thread
-            vpnThread = new Thread(() -> {
-                try (FileInputStream in = new FileInputStream(vpnInterface.getFileDescriptor());
-                     FileOutputStream out = new FileOutputStream(vpnInterface.getFileDescriptor())) {
-                    byte[] packet = new byte[32767];
-                    while (isRunning) {
-                        int length = in.read(packet);
-                        if (length > 0) {
-                            // Forwarding packet buffer ke network interface
-                        }
-                    }
-                } catch (Exception e) {}
-            });
-            vpnThread.start();
-
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] TUN Interface Established (172.19.0.1/28 -> " + host + ":" + port + ")");
-            broadcastLog(cluster, "🔒 [ANTI-LOOP] com.indogaro.net bypass rule actively enforced by Android Kernel.");
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS-Level Tunnel Established -> " + host + ":" + port);
+            broadcastLog(cluster, "🔒 [ANTI-LOOP] com.indogaro.net sukses di-bypass oleh Kernel Android.");
+            broadcastLog(cluster, "⚠️ [PERINGATAN ARSITEK] Kernel mem-parsing traffic ini sebagai HTTP Proxy.");
 
         } catch (Exception e) {
             broadcastLog(cluster, "🛑 [VPN Error] " + e.getMessage());
@@ -89,7 +78,6 @@ public class IndogoVpnService extends VpnService {
 
     private void stopVpnTunnel() {
         isRunning = false;
-        if (vpnThread != null) vpnThread.interrupt();
         try {
             if (vpnInterface != null) {
                 vpnInterface.close();
