@@ -385,6 +385,7 @@ public class MainActivity extends Activity {
             TextView tvStatus = card.findViewById(R.id.tvClusterStatus);
             TextView btnInject = card.findViewById(R.id.btnClusterInject);
             TextView btnStart = card.findViewById(R.id.btnClusterStart);
+            TextView btnBins = card.findViewById(R.id.btnClusterBins);
             TextView btnStop = card.findViewById(R.id.btnClusterStop);
             Button btnLogs = card.findViewById(R.id.btnClusterLogs);
             Button btnDelete = card.findViewById(R.id.btnClusterDelete);
@@ -430,6 +431,7 @@ public class MainActivity extends Activity {
             });
 
             btnStart.setOnClickListener(v -> startClusterExecution(clusterName, bins, type));
+            btnBins.setOnClickListener(v -> showManageBinsModal(clusterName));
             btnStop.setOnClickListener(v -> stopClusterExecution(clusterName));
             btnLogs.setOnClickListener(v -> openInteractiveShellDialog(clusterName));
 
@@ -646,5 +648,74 @@ public class MainActivity extends Activity {
         super.onDestroy();
         telemetryHandler.removeCallbacks(telemetryRunnable);
         unregisterReceiver(logReceiver);
+    }
+    // 🔴 KUNCI ARSITEKTUR: Bin Manager Logic
+    private void showManageBinsModal(String clusterName) {
+        Dialog dialog = new Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_manage_bins, null);
+        dialog.setContentView(view);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(android.view.Gravity.CENTER);
+            window.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        TextView tvSubtitle = view.findViewById(R.id.tvManageBinSubtitle);
+        tvSubtitle.setText("TARGET NODE: " + clusterName);
+        LinearLayout container = view.findViewById(R.id.containerBinList);
+        Button btnClose = view.findViewById(R.id.btnManageBinsClose);
+
+        Runnable refreshList = new Runnable() {
+            @Override
+            public void run() {
+                container.removeAllViews();
+                String binsStr = prefs.getString(clusterName, "");
+                if (binsStr.isEmpty()) {
+                    TextView empty = new TextView(MainActivity.this);
+                    empty.setText("Node ini kosong. Silakan INJECT biner.");
+                    empty.setTextColor(android.graphics.Color.parseColor("#475569"));
+                    container.addView(empty);
+                    return;
+                }
+                String[] bins = binsStr.split(",");
+                for (String bin : bins) {
+                    if (bin.trim().isEmpty()) continue;
+                    LinearLayout row = new LinearLayout(MainActivity.this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setPadding(0, 24, 0, 24);
+                    row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+                    TextView name = new TextView(MainActivity.this);
+                    name.setText(bin);
+                    name.setTextColor(android.graphics.Color.WHITE);
+                    name.setTextSize(13f);
+                    name.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+                    Button btnDel = new Button(MainActivity.this);
+                    btnDel.setText("HAPUS");
+                    btnDel.setTextSize(11f);
+                    btnDel.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#991B1B")));
+                    btnDel.setTextColor(android.graphics.Color.WHITE);
+                    btnDel.setLayoutParams(new LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 100));
+                    
+                    btnDel.setOnClickListener(v -> {
+                        new java.io.File(getFilesDir(), bin).delete();
+                        java.util.List<String> list = new java.util.ArrayList<>(java.util.Arrays.asList(prefs.getString(clusterName, "").split(",")));
+                        list.remove(bin);
+                        prefs.edit().putString(clusterName, String.join(",", list)).apply();
+                        renderDynamicClusters();
+                        this.run(); 
+                    });
+
+                    row.addView(name);
+                    row.addView(btnDel);
+                    container.addView(row);
+                }
+            }
+        };
+        refreshList.run();
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
     }
 }

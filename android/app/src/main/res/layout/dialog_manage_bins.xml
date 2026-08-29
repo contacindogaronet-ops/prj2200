@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp">
+    
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="NODE BINARIES" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:letterSpacing="0.05"/>
+    <TextView android:id="@+id/tvManageBinSubtitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cluster: --" android:textColor="#3B82F6" android:textSize="12sp" android:layout_marginBottom="16dp" android:textStyle="bold"/>
+    
+    <ScrollView android:layout_width="match_parent" android:layout_height="250dp" android:layout_marginBottom="16dp">
+        <LinearLayout android:id="@+id/containerBinList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+    </ScrollView>
+    
+    <Button android:id="@+id/btnManageBinsClose" android:layout_width="match_parent" android:layout_height="50dp" android:text="TUTUP" android:backgroundTint="#1C1C1E" android:textColor="#8E8E93" android:textStyle="bold"/>
+</LinearLayout>
