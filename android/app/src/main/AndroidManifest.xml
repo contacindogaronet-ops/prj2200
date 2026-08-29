@@ -8,8 +8,6 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    
-    <!-- 🔴 KUNCI ARSITEKTUR OTA: Izin Mutlak untuk Menginstal Pembaruan -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
@@ -19,9 +17,9 @@
         android:label="Indogo"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         
-        <!-- 🔴 KUNCI ARSITEKTUR OTA: Jembatan FileProvider -->
+        <!-- 🔴 KUNCI ARSITEKTUR: Perbaikan jalur Class AndroidX FileProvider yang fatal -->
         <provider
-            android:name="android.content.FileProvider"
+            android:name="androidx.core.content.FileProvider"
             android:authorities="com.indogaro.net.provider"
             android:exported="false"
             android:grantUriPermissions="true">
