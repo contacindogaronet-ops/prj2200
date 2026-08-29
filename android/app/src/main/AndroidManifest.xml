@@ -9,8 +9,6 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    
-    <!-- 🔴 KUNCI ARSITEKTUR: Izin menyala otomatis saat OS Booting -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
@@ -41,7 +39,15 @@
                  android:exported="false"
                  android:foregroundServiceType="dataSync" />
 
-        <!-- 🔴 KUNCI ARSITEKTUR: Reseptor Boot OS -->
+        <!-- 🔴 KUNCI ARSITEKTUR: Layanan Gateway VPN (Layer-3 TUN) -->
+        <service android:name=".IndogoVpnService"
+                 android:permission="android.permission.BIND_VPN_SERVICE"
+                 android:exported="false">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

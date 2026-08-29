@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:background="@drawable/bg_surface" android:padding="24dp">
+    
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
+            android:text="CREATE NODE / CLUSTER" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:letterSpacing="0.05"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
+            android:text="Pilih fungsi node dan tentukan konfigurasi routing." android:textColor="#8E8E93" android:textSize="12sp" android:layout_marginTop="4dp" android:layout_marginBottom="20dp"/>
+
+        <!-- Nama Klaster -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
+            android:text="NODE IDENTIFIER" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+        <EditText android:id="@+id/inputClusterName" android:layout_width="match_parent" android:layout_height="50dp" 
+            android:hint="e.g. SOCKS_SG or BOT_TG" android:hintTextColor="#475569" android:textColor="#FFFFFF" android:textSize="14sp"
+            android:background="@drawable/bg_segmented_capsule" android:paddingHorizontal="16dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp"/>
+
+        <!-- Pemilihan Tipe Klaster -->
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
+            android:text="NODE TYPE / PURPOSE" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+        
+        <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" 
+            android:weightSum="2" android:background="@drawable/bg_segmented_capsule" android:padding="4dp" android:layout_marginTop="8dp" android:layout_marginBottom="20dp">
+            <TextView android:id="@+id/btnTypeDaemon" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" 
+                android:text="BOT / DAEMON" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold" android:gravity="center" android:background="@drawable/bg_btn_primary"/>
+            <TextView android:id="@+id/btnTypeVpn" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" 
+                android:text="VPN GATEWAY" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:gravity="center"/>
+        </LinearLayout>
+
+        <!-- Bagian Pengaturan Khusus VPN (Dinamis Muncul/Sembunyi) -->
+        <LinearLayout android:id="@+id/layoutVpnConfig" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:layout_marginBottom="16dp">
+            
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" 
+                android:text="PROXY PROTOCOL" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.1"/>
+            
+            <LinearLayout android:layout_width="match_parent" android:layout_height="45dp" android:orientation="horizontal" 
+                android:weightSum="2" android:background="@drawable/bg_segmented_capsule" android:padding="4dp" android:layout_marginTop="8dp" android:layout_marginBottom="16dp">
+                <TextView android:id="@+id/btnProtoSocks" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" 
+                    android:text="SOCKS5" android:textColor="#FFFFFF" android:textSize="11sp" android:textStyle="bold" android:gravity="center" android:background="@drawable/bg_btn_primary"/>
+                <TextView android:id="@+id/btnProtoHttp" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" 
+                    android:text="HTTP" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold" android:gravity="center"/>
+            </LinearLayout>
+
+            <!-- Host & Port Input Grid -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="3">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:orientation="vertical" android:layout_marginRight="6dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LOCAL PROXY IP" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold"/>
+                    <EditText android:id="@+id/inputProxyHost" android:layout_width="match_parent" android:layout_height="48dp" 
+                        android:text="127.0.0.1" android:textColor="#FFFFFF" android:textSize="13sp" android:background="@drawable/bg_segmented_capsule" android:paddingHorizontal="12dp" android:layout_marginTop="6dp"/>
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginLeft="6dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PORT" android:textColor="#8E8E93" android:textSize="11sp" android:textStyle="bold"/>
+                    <EditText android:id="@+id/inputProxyPort" android:layout_width="match_parent" android:layout_height="48dp" 
+                        android:hint="10808" android:hintTextColor="#475569" android:textColor="#FFFFFF" android:textSize="13sp" android:inputType="number" android:background="@drawable/bg_segmented_capsule" android:paddingHorizontal="12dp" android:layout_marginTop="6dp"/>
+                </LinearLayout>
+            </LinearLayout>
+            
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" 
+                android:text="* Seluruh traffic perangkat akan diarahkan ke proxy ini via TUN interface tanpa looping." android:textColor="#4ADE80" android:textSize="11sp" android:layout_marginTop="12dp"/>
+        </LinearLayout>
+
+        <!-- Tombol Aksi Modal -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginTop="12dp">
+            <Button android:id="@+id/btnModalCancel" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" 
+                android:text="CANCEL" android:backgroundTint="#1C1C1E" android:textColor="#8E8E93" android:layout_marginRight="6dp"/>
+            <Button android:id="@+id/btnModalCreate" android:layout_width="0dp" android:layout_height="50dp" android:layout_weight="1" 
+                android:text="SAVE NODE" android:background="@drawable/bg_btn_primary" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginLeft="6dp"/>
+        </LinearLayout>
+        
+    </LinearLayout>
+</ScrollView>

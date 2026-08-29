@@ -3,10 +3,11 @@
     android:layout_width="match_parent" android:layout_height="wrap_content"
     android:orientation="vertical" android:background="@drawable/bg_surface" android:padding="24dp" android:layout_marginBottom="20dp">
     
-    <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="24dp">
+    <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="20dp">
         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/tvClusterName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="NODE" android:textColor="#FFFFFF" android:textSize="20sp" android:letterSpacing="0.05"/>
-            <TextView android:id="@+id/tvClusterStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 BINARIES" android:textColor="#8E8E93" android:textSize="11sp" android:layout_marginTop="4dp" android:letterSpacing="0.1"/>
+            <TextView android:id="@+id/tvClusterName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="NODE NAME" android:textColor="#FFFFFF" android:textSize="20sp" android:letterSpacing="0.05" android:textStyle="bold"/>
+            <TextView android:id="@+id/tvClusterBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DAEMON BOT" android:textColor="#38BDF8" android:textSize="11sp" android:textStyle="bold" android:layout_marginTop="4dp" android:letterSpacing="0.05"/>
+            <TextView android:id="@+id/tvClusterStatus" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 BINARIES" android:textColor="#8E8E93" android:textSize="11sp" android:layout_marginTop="2dp"/>
         </LinearLayout>
         
         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_alignParentRight="true" android:layout_centerVertical="true">
@@ -15,7 +16,6 @@
         </LinearLayout>
     </RelativeLayout>
 
-    <!-- 🔴 KUNCI ARSITEKTUR: Segmented Control Container -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="50dp" android:orientation="horizontal" android:weightSum="3" android:background="@drawable/bg_segmented_capsule" android:padding="4dp">
         <TextView android:id="@+id/btnClusterInject" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="INJECT" android:textColor="#8E8E93" android:textSize="12sp" android:textStyle="bold" android:gravity="center" android:background="?android:attr/selectableItemBackground"/>
         <View android:layout_width="1dp" android:layout_height="match_parent" android:background="#1C1C1E" android:layout_marginVertical="6dp"/>

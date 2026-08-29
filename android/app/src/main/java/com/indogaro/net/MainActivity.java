@@ -2,6 +2,7 @@ package com.indogaro.net;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -9,12 +10,18 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.TrafficStats;
+import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -58,6 +65,10 @@ public class MainActivity extends Activity {
     private String currentInjectCluster = "";
     private String activeLogCluster = "";
     private TextView tvActiveLog = null; 
+
+    // VPN Pending Execution Cache
+    private String pendingVpnCluster = "";
+    private String pendingVpnBins = "";
 
     private final BroadcastReceiver logReceiver = new BroadcastReceiver() {
         @Override
@@ -138,18 +149,21 @@ public class MainActivity extends Activity {
         renderDynamicClusters();
         startTelemetryEngine();
 
-        btnAddCluster.setOnClickListener(v -> promptNewCluster());
+        btnAddCluster.setOnClickListener(v -> showCreateClusterModal());
         btnCheckUpdate.setOnClickListener(v -> new OTAUpdater(this).check(true));
         
-        // 🔴 KUNCI ARSITEKTUR: Tombol Panic memicu Zombie Annihilator
         btnPanic.setOnClickListener(v -> {
             Intent panicIntent = new Intent(this, DaemonService.class);
             panicIntent.setAction("PANIC_KILL_ALL");
             startService(panicIntent);
+
+            Intent vpnStopIntent = new Intent(this, IndogoVpnService.class);
+            vpnStopIntent.setAction("STOP_VPN");
+            startService(vpnStopIntent);
             
             new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("PANIC INITIATED")
-                .setMessage("Semua eksekusi proses telah dihentikan secara paksa dari memori Kernel.")
+                .setMessage("Semua proses biner dan VPN Gateway telah dimatikan secara total.")
                 .setPositiveButton("OK", null)
                 .show();
         });
@@ -270,23 +284,93 @@ public class MainActivity extends Activity {
         prefs.edit().putString("CLUSTER_LIST", String.join(",", clusterList)).apply();
     }
 
-    private void promptNewCluster() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert);
-        builder.setTitle("Create Node");
-        final EditText input = new EditText(this);
-        input.setHint("e.g. WORKER_01");
-        input.setTextColor(Color.WHITE);
-        builder.setView(input);
-        builder.setPositiveButton("CREATE", (dialog, which) -> {
-            String name = input.getText().toString().trim().toUpperCase();
-            if (!name.isEmpty() && !clusterList.contains(name)) {
+    // 🔴 KUNCI ARSITEKTUR: Modal Pembuatan Klaster Modern & Interaktif
+    private void showCreateClusterModal() {
+        Dialog dialog = new Dialog(this, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
+        View view = LayoutInflater.from(this).inflate(R.layout.dialog_create_cluster, null);
+        dialog.setContentView(view);
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.CENTER);
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        EditText inputName = view.findViewById(R.id.inputClusterName);
+        TextView btnTypeDaemon = view.findViewById(R.id.btnTypeDaemon);
+        TextView btnTypeVpn = view.findViewById(R.id.btnTypeVpn);
+        LinearLayout layoutVpnConfig = view.findViewById(R.id.layoutVpnConfig);
+        TextView btnProtoSocks = view.findViewById(R.id.btnProtoSocks);
+        TextView btnProtoHttp = view.findViewById(R.id.btnProtoHttp);
+        EditText inputHost = view.findViewById(R.id.inputProxyHost);
+        EditText inputPort = view.findViewById(R.id.inputProxyPort);
+        Button btnCancel = view.findViewById(R.id.btnModalCancel);
+        Button btnCreate = view.findViewById(R.id.btnModalCreate);
+
+        final String[] selectedType = {"DAEMON"};
+        final String[] selectedProto = {"SOCKS5"};
+
+        btnTypeDaemon.setOnClickListener(v -> {
+            selectedType[0] = "DAEMON";
+            btnTypeDaemon.setBackgroundResource(R.drawable.bg_btn_primary);
+            btnTypeDaemon.setTextColor(Color.WHITE);
+            btnTypeVpn.setBackground(null);
+            btnTypeVpn.setTextColor(Color.parseColor("#8E8E93"));
+            layoutVpnConfig.setVisibility(View.GONE);
+        });
+
+        btnTypeVpn.setOnClickListener(v -> {
+            selectedType[0] = "VPN";
+            btnTypeVpn.setBackgroundResource(R.drawable.bg_btn_primary);
+            btnTypeVpn.setTextColor(Color.WHITE);
+            btnTypeDaemon.setBackground(null);
+            btnTypeDaemon.setTextColor(Color.parseColor("#8E8E93"));
+            layoutVpnConfig.setVisibility(View.VISIBLE);
+        });
+
+        btnProtoSocks.setOnClickListener(v -> {
+            selectedProto[0] = "SOCKS5";
+            btnProtoSocks.setBackgroundResource(R.drawable.bg_btn_primary);
+            btnProtoSocks.setTextColor(Color.WHITE);
+            btnProtoHttp.setBackground(null);
+            btnProtoHttp.setTextColor(Color.parseColor("#8E8E93"));
+        });
+
+        btnProtoHttp.setOnClickListener(v -> {
+            selectedProto[0] = "HTTP";
+            btnProtoHttp.setBackgroundResource(R.drawable.bg_btn_primary);
+            btnProtoHttp.setTextColor(Color.WHITE);
+            btnProtoSocks.setBackground(null);
+            btnProtoSocks.setTextColor(Color.parseColor("#8E8E93"));
+        });
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        btnCreate.setOnClickListener(v -> {
+            String name = inputName.getText().toString().trim().toUpperCase().replaceAll("[^A-Z0-9_]", "_");
+            if (name.isEmpty()) return;
+
+            if (!clusterList.contains(name)) {
                 clusterList.add(name);
                 saveClusterList();
+
+                // Simpan metadata klaster
+                prefs.edit().putString(name + "_TYPE", selectedType[0]).apply();
+                if ("VPN".equals(selectedType[0])) {
+                    prefs.edit().putString(name + "_HOST", inputHost.getText().toString().trim()).apply();
+                    int port = 10808;
+                    try { port = Integer.parseInt(inputPort.getText().toString().trim()); } catch (Exception e) {}
+                    prefs.edit().putInt(name + "_PORT", port).apply();
+                    prefs.edit().putString(name + "_PROTO", selectedProto[0]).apply();
+                }
+
                 renderDynamicClusters();
+                dialog.dismiss();
             }
         });
-        builder.setNegativeButton("CANCEL", null);
-        builder.show();
+
+        dialog.show();
     }
 
     private void renderDynamicClusters() {
@@ -297,6 +381,7 @@ public class MainActivity extends Activity {
             View card = getLayoutInflater().inflate(R.layout.item_cluster, clusterContainer, false);
             
             TextView tvName = card.findViewById(R.id.tvClusterName);
+            TextView tvBadge = card.findViewById(R.id.tvClusterBadge);
             TextView tvStatus = card.findViewById(R.id.tvClusterStatus);
             TextView btnInject = card.findViewById(R.id.btnClusterInject);
             TextView btnStart = card.findViewById(R.id.btnClusterStart);
@@ -305,23 +390,31 @@ public class MainActivity extends Activity {
             Button btnDelete = card.findViewById(R.id.btnClusterDelete);
 
             tvName.setText(clusterName);
+            String type = prefs.getString(clusterName + "_TYPE", "DAEMON");
+            
+            if ("VPN".equals(type)) {
+                String proto = prefs.getString(clusterName + "_PROTO", "SOCKS5");
+                int port = prefs.getInt(clusterName + "_PORT", 10808);
+                tvBadge.setText("🛡️ VPN GATEWAY (" + proto + " :" + port + ")");
+                tvBadge.setTextColor(Color.parseColor("#34C759"));
+            } else {
+                tvBadge.setText("⚡ BOT DAEMON PROCESS");
+                tvBadge.setTextColor(Color.parseColor("#38BDF8"));
+            }
+
             String bins = prefs.getString(clusterName, "");
             int count = bins.isEmpty() ? 0 : bins.split(",").length;
-            tvStatus.setText(count + " BINARIES");
+            tvStatus.setText(count + " BINARIES READY");
 
             btnDelete.setOnClickListener(v -> {
                 new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                     .setTitle("Delete Node")
                     .setMessage("Hancurkan cluster " + clusterName + " secara permanen?")
                     .setPositiveButton("HAPUS", (dialog, which) -> {
-                        Intent intent = new Intent(this, DaemonService.class);
-                        intent.setAction("STOP_CLUSTER");
-                        intent.putExtra("CLUSTER", clusterName);
-                        startService(intent);
-                        
+                        stopClusterExecution(clusterName);
                         clusterList.remove(clusterName);
                         saveClusterList();
-                        prefs.edit().remove(clusterName).apply();
+                        prefs.edit().remove(clusterName).remove(clusterName + "_TYPE").apply();
                         logsMap.remove(clusterName);
                         renderDynamicClusters();
                     })
@@ -336,27 +429,72 @@ public class MainActivity extends Activity {
                 startActivityForResult(intent, 1);
             });
 
-            btnStart.setOnClickListener(v -> {
-                String currentBins = prefs.getString(clusterName, "");
-                if (currentBins.isEmpty()) return;
-                Intent intent = new Intent(this, DaemonService.class);
-                intent.setAction("START_CLUSTER");
-                intent.putExtra("CLUSTER", clusterName);
-                intent.putExtra("BINS", currentBins);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent);
-                else startService(intent);
-            });
-
-            btnStop.setOnClickListener(v -> {
-                Intent intent = new Intent(this, DaemonService.class);
-                intent.setAction("STOP_CLUSTER");
-                intent.putExtra("CLUSTER", clusterName);
-                startService(intent);
-            });
-
+            btnStart.setOnClickListener(v -> startClusterExecution(clusterName, bins, type));
+            btnStop.setOnClickListener(v -> stopClusterExecution(clusterName));
             btnLogs.setOnClickListener(v -> openInteractiveShellDialog(clusterName));
 
             clusterContainer.addView(card);
+        }
+    }
+
+    private void startClusterExecution(String clusterName, String bins, String type) {
+        if ("VPN".equals(type)) {
+            // Cek Izin OS VPN Terlebih Dahulu
+            Intent vpnPrepareIntent = VpnService.prepare(this);
+            if (vpnPrepareIntent != null) {
+                pendingVpnCluster = clusterName;
+                pendingVpnBins = bins;
+                startActivityForResult(vpnPrepareIntent, 1001);
+                return;
+            }
+            executeVpnAndDaemon(clusterName, bins);
+        } else {
+            if (bins.isEmpty()) return;
+            Intent intent = new Intent(this, DaemonService.class);
+            intent.setAction("START_CLUSTER");
+            intent.putExtra("CLUSTER", clusterName);
+            intent.putExtra("BINS", bins);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent);
+            else startService(intent);
+        }
+    }
+
+    private void executeVpnAndDaemon(String clusterName, String bins) {
+        // 1. Eksekusi Biner (Jika Diinjeksi)
+        if (!bins.isEmpty()) {
+            Intent daemonIntent = new Intent(this, DaemonService.class);
+            daemonIntent.setAction("START_CLUSTER");
+            daemonIntent.putExtra("CLUSTER", clusterName);
+            daemonIntent.putExtra("BINS", bins);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(daemonIntent);
+            else startService(daemonIntent);
+        }
+
+        // 2. Eksekusi VPN Routing Service
+        String host = prefs.getString(clusterName + "_HOST", "127.0.0.1");
+        int port = prefs.getInt(clusterName + "_PORT", 10808);
+        String proto = prefs.getString(clusterName + "_PROTO", "SOCKS5");
+
+        Intent vpnIntent = new Intent(this, IndogoVpnService.class);
+        vpnIntent.setAction("START_VPN");
+        vpnIntent.putExtra("CLUSTER", clusterName);
+        vpnIntent.putExtra("HOST", host);
+        vpnIntent.putExtra("PORT", port);
+        vpnIntent.putExtra("PROTO", proto);
+        startService(vpnIntent);
+    }
+
+    private void stopClusterExecution(String clusterName) {
+        Intent intent = new Intent(this, DaemonService.class);
+        intent.setAction("STOP_CLUSTER");
+        intent.putExtra("CLUSTER", clusterName);
+        startService(intent);
+
+        String type = prefs.getString(clusterName + "_TYPE", "DAEMON");
+        if ("VPN".equals(type)) {
+            Intent vpnStopIntent = new Intent(this, IndogoVpnService.class);
+            vpnStopIntent.setAction("STOP_VPN");
+            startService(vpnStopIntent);
         }
     }
 
@@ -473,23 +611,33 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && data != null && requestCode == 1) {
-            try {
-                String bins = prefs.getString(currentInjectCluster, "");
-                String binName = currentInjectCluster.toLowerCase() + "_bin_" + System.currentTimeMillis();
-                File destFile = new File(getFilesDir(), binName);
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK) {
+            if (requestCode == 1 && data != null) {
+                try {
+                    String bins = prefs.getString(currentInjectCluster, "");
+                    String binName = currentInjectCluster.toLowerCase() + "_bin_" + System.currentTimeMillis();
+                    File destFile = new File(getFilesDir(), binName);
 
-                InputStream in = getContentResolver().openInputStream(data.getData());
-                FileOutputStream out = new FileOutputStream(destFile);
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-                in.close(); out.close();
+                    InputStream in = getContentResolver().openInputStream(data.getData());
+                    FileOutputStream out = new FileOutputStream(destFile);
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                    in.close(); out.close();
 
-                String newBins = bins.isEmpty() ? binName : bins + "," + binName;
-                prefs.edit().putString(currentInjectCluster, newBins).apply();
-                renderDynamicClusters(); 
-            } catch (Exception e) {}
+                    String newBins = bins.isEmpty() ? binName : bins + "," + binName;
+                    prefs.edit().putString(currentInjectCluster, newBins).apply();
+                    renderDynamicClusters(); 
+                } catch (Exception e) {}
+            } else if (requestCode == 1001) {
+                // Izin VPN Disetujui oleh User
+                if (!pendingVpnCluster.isEmpty()) {
+                    executeVpnAndDaemon(pendingVpnCluster, pendingVpnBins);
+                    pendingVpnCluster = "";
+                    pendingVpnBins = "";
+                }
+            }
         }
     }
 
