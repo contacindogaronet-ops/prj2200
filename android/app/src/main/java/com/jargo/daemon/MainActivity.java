@@ -7,13 +7,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.net.TrafficStats;
+import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.OpenableColumns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -51,7 +54,6 @@ public class MainActivity extends Activity {
     
     private String currentInjectCluster = "";
     private String activeLogCluster = "";
-    private String targetRuleFilename = ""; // Variabel penampung nama file saat upload
     private TextView tvActiveLog = null; 
 
     private final BroadcastReceiver logReceiver = new BroadcastReceiver() {
@@ -106,8 +108,12 @@ public class MainActivity extends Activity {
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
         
-        // 🔴 KUNCI ARSITEKTUR: Pemicu Upload Rules
-        btnInjectRules.setOnClickListener(v -> promptRuleFilename());
+        // 🔴 KUNCI ARSITEKTUR: Langsung buka File Manager tanpa dialog input nama
+        btnInjectRules.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("*/*");
+            startActivityForResult(intent, 2); // Request Code 2 untuk Rules
+        });
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(logReceiver, new IntentFilter("DAEMON_LOG"), Context.RECEIVER_EXPORTED);
@@ -116,23 +122,23 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void promptRuleFilename() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Nama File Target");
-        builder.setMessage("Biner Anda mencari file secara spesifik. Simpan sebagai apa di dalam ./blocklists/ ?");
-        final EditText input = new EditText(this);
-        input.setText("adguarddns.txt");
-        builder.setView(input);
-        builder.setPositiveButton("PILIH FILE", (dialog, which) -> {
-            targetRuleFilename = input.getText().toString().trim();
-            if (!targetRuleFilename.isEmpty()) {
-                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.setType("*/*");
-                startActivityForResult(intent, 2); // Request Code 2 untuk Rules
+    // 🔴 KUNCI ARSITEKTUR: Fungsi Pengekstrak Metadata Nama File dari URI ContentResolver
+    private String getFileName(Uri uri) {
+        String result = null;
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (index >= 0) result = cursor.getString(index);
+                }
             }
-        });
-        builder.setNegativeButton("BATAL", null);
-        builder.show();
+        }
+        if (result == null) {
+            result = uri.getPath();
+            int cut = result.lastIndexOf('/');
+            if (cut != -1) result = result.substring(cut + 1);
+        }
+        return result;
     }
 
     private void startTelemetryEngine() {
@@ -257,7 +263,6 @@ public class MainActivity extends Activity {
             int count = bins.isEmpty() ? 0 : bins.split(",").length;
             tvStatus.setText(count + " Binaries Injected");
 
-            // 🔴 KUNCI ARSITEKTUR: Logika Penghapusan Klaster
             btnDelete.setOnClickListener(v -> {
                 new AlertDialog.Builder(this)
                     .setTitle("Pemusnahan Klaster")
@@ -282,7 +287,7 @@ public class MainActivity extends Activity {
                 currentInjectCluster = clusterName;
                 Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                 intent.setType("*/*");
-                startActivityForResult(intent, 1); // Request Code 1 untuk Biner
+                startActivityForResult(intent, 1);
             });
 
             btnStart.setOnClickListener(v -> {
@@ -334,7 +339,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == RESULT_OK && data != null) {
-            // Logika Balasan Injeksi Biner
             if (requestCode == 1) {
                 try {
                     String bins = prefs.getString(currentInjectCluster, "");
@@ -353,13 +357,18 @@ public class MainActivity extends Activity {
                     renderDynamicClusters(); 
                 } catch (Exception e) {}
             } 
-            // 🔴 KUNCI ARSITEKTUR: Logika Balasan Injeksi Rules
             else if (requestCode == 2) {
                 try {
+                    // 🔴 KUNCI ARSITEKTUR: Ekstraksi Otomatis Nama File Asli
+                    String fileName = getFileName(data.getData());
+                    if (fileName == null || fileName.isEmpty()) {
+                        fileName = "rules_" + System.currentTimeMillis() + ".txt"; // Fallback aman
+                    }
+
                     File blocklistsDir = new File(getFilesDir(), "blocklists");
-                    if (!blocklistsDir.exists()) blocklistsDir.mkdirs(); // Buat folder jika belum ada
+                    if (!blocklistsDir.exists()) blocklistsDir.mkdirs();
                     
-                    File destFile = new File(blocklistsDir, targetRuleFilename);
+                    File destFile = new File(blocklistsDir, fileName);
                     InputStream in = getContentResolver().openInputStream(data.getData());
                     FileOutputStream out = new FileOutputStream(destFile);
                     byte[] buffer = new byte[8192];
@@ -369,7 +378,7 @@ public class MainActivity extends Activity {
 
                     new AlertDialog.Builder(this)
                         .setTitle("Injeksi Berhasil")
-                        .setMessage("File berhasil disimpan di: \n./blocklists/" + targetRuleFilename)
+                        .setMessage("File berhasil disuntikkan sebagai: \n./blocklists/" + fileName)
                         .setPositiveButton("OK", null)
                         .show();
                 } catch (Exception e) {
