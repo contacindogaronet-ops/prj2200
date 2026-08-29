@@ -4,13 +4,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        // KUNCI ARSITEKTUR: Menggunakan AGP 8.1.0 yang kompatibel dengan Java 17 di GitHub Actions
+        // Hanya mendefinisikan mesin kompilator AGP
         classpath 'com.android.tools.build:gradle:8.1.0'
     }
 }
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
+// 🔴 KUNCI ARSITEKTUR: Blok 'allprojects' telah diamputasi total dari sini 
+// karena pengaturan repositori sudah diambil alih oleh settings.gradle
