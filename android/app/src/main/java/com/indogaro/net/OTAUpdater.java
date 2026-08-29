@@ -80,7 +80,8 @@ public class OTAUpdater {
                     if (isUpdateAvailable) {
                         showBottomSheet(true, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
                     } else if (isManual) {
-                        showBottomSheet(false, currentVersion, latestVersion, changelog, publishDate, null);
+                        // 🔴 KUNCI ARSITEKTUR: Teruskan downloadUrl ke panel meskipun sistem optimal
+                        showBottomSheet(false, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
                     }
                 });
             } catch (Exception e) {
@@ -114,6 +115,9 @@ public class OTAUpdater {
         LinearLayout layoutProgress = view.findViewById(R.id.layoutProgress);
         ProgressBar progressBar = view.findViewById(R.id.progressBar);
         TextView tvProgressText = view.findViewById(R.id.tvProgressText);
+        
+        // Deklarasi tombol ganda
+        Button btnCancel = view.findViewById(R.id.btnUpdateCancel);
         Button btnAction = view.findViewById(R.id.btnUpdateAction);
 
         tvDate.setText("Tanggal Rilis: " + date);
@@ -124,26 +128,38 @@ public class OTAUpdater {
             tvTitle.setTextColor(Color.parseColor("#3B82F6"));
             tvVersion.setText("Versi Saat Ini: " + currentVersion + "\nVersi Terbaru: " + latestVersion);
             tvChangelog.setText(changelog);
+            
+            btnCancel.setText("NANTI");
             btnAction.setText("UNDUH & INSTALL");
             btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#3B82F6")));
-            
-            btnAction.setOnClickListener(v -> {
-                btnAction.setEnabled(false);
-                btnAction.setText("MEMPROSES...");
-                layoutProgress.setVisibility(View.VISIBLE);
-                downloadAndInstall(downloadUrl, progressBar, tvProgressText, bottomDialog);
-            });
         } else {
+            // 🔴 KUNCI ARSITEKTUR: Override State (Paksa Instal)
             tvIcon.setText("✅");
             tvTitle.setText("SISTEM OPTIMAL");
             tvTitle.setTextColor(Color.parseColor("#34C759"));
             tvVersion.setText("Versi Saat Ini: " + currentVersion + " (Mutakhir)");
             scrollChangelog.setVisibility(View.GONE);
-            btnAction.setText("TUTUP");
-            btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#1C1C1E")));
-            btnAction.setTextColor(Color.parseColor("#8E8E93"));
             
-            btnAction.setOnClickListener(v -> bottomDialog.dismiss());
+            btnCancel.setText("TUTUP");
+            btnAction.setText("PAKSA INSTAL");
+            // Warna merah gelap untuk indikasi "Tindakan Paksa"
+            btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#991B1B"))); 
+            
+            if (downloadUrl == null) {
+                btnAction.setVisibility(View.GONE); // Sembunyikan jika error server
+            }
+        }
+
+        btnCancel.setOnClickListener(v -> bottomDialog.dismiss());
+        
+        if (downloadUrl != null) {
+            btnAction.setOnClickListener(v -> {
+                btnAction.setEnabled(false);
+                btnCancel.setEnabled(false);
+                btnAction.setText("MEMPROSES...");
+                layoutProgress.setVisibility(View.VISIBLE);
+                downloadAndInstall(downloadUrl, progressBar, tvProgressText, bottomDialog);
+            });
         }
 
         bottomDialog.show();
@@ -209,11 +225,9 @@ public class OTAUpdater {
         }).start();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Validasi Izin Instalasi OS (Android 8.0+)
     private void installApk(File apkFile) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!activity.getPackageManager().canRequestPackageInstalls()) {
-                // Lempar User ke Layar Pengaturan untuk Minta Izin
                 Intent permIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
                 permIntent.setData(Uri.parse("package:" + activity.getPackageName()));
                 activity.startActivity(permIntent);

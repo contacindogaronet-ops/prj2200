@@ -6,7 +6,7 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
         <TextView android:id="@+id/tvUpdateIcon" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🔄" android:textSize="24sp" android:layout_marginRight="12dp"/>
         <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical">
-            <TextView android:id="@+id/tvUpdateTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PEMBARUAN TERSANGKUT" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:letterSpacing="0.05"/>
+            <TextView android:id="@+id/tvUpdateTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MEMERIKSA..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:letterSpacing="0.05"/>
             <TextView android:id="@+id/tvUpdateSubtitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Indogo Daemon" android:textColor="#3B82F6" android:textSize="12sp" android:textStyle="bold"/>
         </LinearLayout>
     </LinearLayout>
@@ -26,6 +26,10 @@
         <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="6dp" android:progressDrawable="@drawable/custom_progress_bar" android:max="100" android:progress="0"/>
     </LinearLayout>
 
-    <Button android:id="@+id/btnUpdateAction" android:layout_width="match_parent" android:layout_height="55dp" android:text="TUTUP" android:background="@drawable/bg_btn_primary" android:textColor="#FFFFFF" android:textStyle="bold" android:letterSpacing="0.05"/>
+    <!-- 🔴 KUNCI ARSITEKTUR: Dual Button Layout untuk Override Manual -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2">
+        <Button android:id="@+id/btnUpdateCancel" android:layout_width="0dp" android:layout_height="55dp" android:layout_weight="1" android:text="TUTUP" android:backgroundTint="#1C1C1E" android:textColor="#8E8E93" android:textStyle="bold" android:layout_marginRight="6dp"/>
+        <Button android:id="@+id/btnUpdateAction" android:layout_width="0dp" android:layout_height="55dp" android:layout_weight="1" android:text="UNDUH" android:backgroundTint="#3B82F6" android:textColor="#FFFFFF" android:textStyle="bold" android:layout_marginLeft="6dp"/>
+    </LinearLayout>
     
 </LinearLayout>
