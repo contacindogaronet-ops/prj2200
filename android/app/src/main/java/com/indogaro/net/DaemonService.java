@@ -10,6 +10,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
@@ -18,20 +19,29 @@ import java.util.Map;
 
 public class DaemonService extends Service {
     private final Map<String, Process> activeProcesses = new HashMap<>();
-    private final Map<String, Boolean> stopFlags = new HashMap<>(); // 🔴 Bendera untuk membedakan Crash vs Tombol STOP
-    private int runningCount = 0;
+    private final Map<String, Boolean> stopFlags = new HashMap<>(); 
     private SharedPreferences settingsPrefs;
+    
+    // 🔴 KUNCI ARSITEKTUR: Objek Penahan CPU Tidur
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     public void onCreate() {
         super.onCreate();
         settingsPrefs = getSharedPreferences("DaemonSettings", Context.MODE_PRIVATE);
         
+        // Eksekusi Penguncian CPU
+        if (settingsPrefs.getBoolean("WAKELOCK", true)) {
+            PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Indogo::CpuWakeLock");
+            wakeLock.acquire(); 
+        }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel("DAEMON", "Daemon", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
-        Notification notif = new Notification.Builder(this, "DAEMON").setContentTitle("Indogo").setContentText("Standby...").setSmallIcon(android.R.drawable.ic_media_play).build();
+        Notification notif = new Notification.Builder(this, "DAEMON").setContentTitle("Indogo Matrix").setContentText("Orchestrator Standby...").setSmallIcon(android.R.drawable.ic_media_play).build();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
         else startForeground(1, notif);
     }
@@ -44,7 +54,7 @@ public class DaemonService extends Service {
             String bins = intent.getStringExtra("BINS"); 
 
             if ("START_CLUSTER".equals(action) && bins != null && !bins.isEmpty()) {
-                stopFlags.put(cluster, false); // Matikan bendera stop
+                stopFlags.put(cluster, false); 
                 for (String bin : bins.split(",")) executeBinary(cluster, bin);
             } else if ("STOP_CLUSTER".equals(action)) {
                 killCluster(cluster);
@@ -67,7 +77,6 @@ public class DaemonService extends Service {
             boolean keepRunning = true;
             
             while (keepRunning) {
-                // Mengecek bendera stop manual dari user
                 if (stopFlags.getOrDefault(cluster, false)) {
                     break; 
                 }
@@ -77,13 +86,13 @@ public class DaemonService extends Service {
                     pb.directory(getFilesDir());
                     pb.redirectErrorStream(true);
                     
-                    // 🔴 KUNCI ARSITEKTUR: Menyuntikkan Aturan Aggressive RAM
+                    // 🔴 KUNCI ARSITEKTUR: Menyuntikkan Parameter Pengoptimalan Ping
                     Map<String, String> env = pb.environment();
-                    if (settingsPrefs.getBoolean("AGGRESSIVE_RAM", false)) {
-                        env.put("GOGC", "off"); // Matikan Garbage Collector Golang (Agresif makan RAM, CPU Ringan)
-                        env.put("GOMAXPROCS", String.valueOf(Runtime.getRuntime().availableProcessors()));
+                    if (settingsPrefs.getBoolean("LOW_LATENCY", false)) {
+                        env.put("GOGC", "500"); // GC dipanggil sangat jarang, tapi tidak mati (mencegah OOM Swap)
+                        env.put("GOMAXPROCS", "2"); // Kunci hanya ke 2 Core Performance tertinggi (Cegah bottleneck LITTLE Core)
                     } else {
-                        env.put("GOMEMLIMIT", "128MiB"); // Paksa limit RAM rendah
+                        env.put("GOMEMLIMIT", "128MiB"); 
                     }
                     
                     Process process = pb.start();
@@ -96,10 +105,9 @@ public class DaemonService extends Service {
                         broadcastLog(cluster, "[" + binName + "] " + line);
                     }
                     
-                    process.waitFor(); // ⬅️ Mesin akan tertahan di sini sampai bot mati/crash
+                    process.waitFor(); 
                     activeProcesses.remove(processKey);
                     
-                    // Logika Post-Mortem (Setelah Bot Mati)
                     if (stopFlags.getOrDefault(cluster, false)) {
                         keepRunning = false;
                         broadcastLog(cluster, "💀 Biner dihentikan oleh User: " + binName);
@@ -120,7 +128,7 @@ public class DaemonService extends Service {
     }
 
     private void killCluster(String cluster) {
-        stopFlags.put(cluster, true); // 🔴 Nyalakan bendera stop manual
+        stopFlags.put(cluster, true); 
         broadcastLog(cluster, "⚠️ Menerima sinyal pemusnahan massal...");
         for (Map.Entry<String, Process> entry : activeProcesses.entrySet()) {
             if (entry.getKey().startsWith(cluster + "_")) {
@@ -139,4 +147,13 @@ public class DaemonService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) { return null; }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // 🔴 Lepaskan tahanan CPU agar baterai bisa bernapas saat aplikasi dimatikan total
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+    }
 }

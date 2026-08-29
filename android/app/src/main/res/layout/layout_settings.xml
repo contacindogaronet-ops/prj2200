@@ -2,14 +2,14 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp">
     
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UNIVERSAL SETTINGS" android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="24dp"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UNIVERSAL SETTINGS" android:textColor="#F8FAFC" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="24dp"/>
     
-    <Switch android:id="@+id/switchAutoRestart" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart on Crash" android:textColor="#AAAAAA" android:layout_marginBottom="16dp"/>
-    <Switch android:id="@+id/switchAggressiveRam" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Aggressive CPU/RAM Allocation" android:textColor="#AAAAAA" android:layout_marginBottom="24dp"/>
+    <Switch android:id="@+id/switchAutoRestart" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Auto-Restart on Crash\nRespawn loop saat biner mati." android:textColor="#94A3B8" android:layout_marginBottom="20dp"/>
     
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="FILE SYSTEM INJECTION" android:textColor="#F8FAFC" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="8dp"/>
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Suntikkan file .txt (Rules/Config) ke dalam folder ./blocklists/ yang berdampingan dengan biner eksekusi Anda." android:textColor="#94A3B8" android:textSize="12sp" android:layout_marginBottom="16dp"/>
+    <Switch android:id="@+id/switchWakelock" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CPU Partial WakeLock\nCegah Doze/Sleep saat layar mati." android:textColor="#94A3B8" android:layout_marginBottom="20dp"/>
+
+    <Switch android:id="@+id/switchLowLatency" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Low Latency Optimizer (Ping)\nKunci 2 Big Cores &amp; GC Delay." android:textColor="#94A3B8" android:layout_marginBottom="20dp"/>
     
-    <Button android:id="@+id/btnInjectRules" android:layout_width="match_parent" android:layout_height="60dp" android:text="📁 UPLOAD TO ./BLOCKLISTS/" android:backgroundTint="#0F172A" android:textColor="#38BDF8" android:textStyle="bold"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="* Perubahan parameter memerlukan restart klaster." android:textColor="#475569" android:textSize="12sp" android:layout_marginTop="30dp"/>
     
 </LinearLayout>

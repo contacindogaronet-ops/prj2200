@@ -8,16 +8,13 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.database.Cursor;
 import android.graphics.Color;
 import android.net.TrafficStats;
-import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.OpenableColumns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -41,8 +38,8 @@ public class MainActivity extends Activity {
     private View viewHome, viewClusters, viewSettings;
     private TextView navHome, navClusters, navSettings;
     private LinearLayout clusterContainer;
-    private Button btnAddCluster, btnInjectRules;
-    private Switch switchAutoRestart, switchAggressiveRam;
+    private Button btnAddCluster;
+    private Switch switchAutoRestart, switchWakelock, switchLowLatency;
     
     private TextView tvTemp, tvRx, tvTx, tvPingLocal, tvPingGlobal;
     private long lastRxBytes = 0, lastTxBytes = 0;
@@ -93,18 +90,18 @@ public class MainActivity extends Activity {
         
         clusterContainer = findViewById(R.id.clusterContainer);
         btnAddCluster = findViewById(R.id.btnAddCluster);
-        btnInjectRules = findViewById(R.id.btnInjectRules);
         
-        // 🔴 Bind Settings Switches
         switchAutoRestart = findViewById(R.id.switchAutoRestart);
-        switchAggressiveRam = findViewById(R.id.switchAggressiveRam);
+        switchWakelock = findViewById(R.id.switchWakelock);
+        switchLowLatency = findViewById(R.id.switchLowLatency);
 
-        // Load Settings State
-        switchAutoRestart.setChecked(settingsPrefs.getBoolean("AUTO_RESTART", true)); // Default On
-        switchAggressiveRam.setChecked(settingsPrefs.getBoolean("AGGRESSIVE_RAM", false)); // Default Off
+        switchAutoRestart.setChecked(settingsPrefs.getBoolean("AUTO_RESTART", true));
+        switchWakelock.setChecked(settingsPrefs.getBoolean("WAKELOCK", true));
+        switchLowLatency.setChecked(settingsPrefs.getBoolean("LOW_LATENCY", false));
         
         switchAutoRestart.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("AUTO_RESTART", isChecked).apply());
-        switchAggressiveRam.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("AGGRESSIVE_RAM", isChecked).apply());
+        switchWakelock.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("WAKELOCK", isChecked).apply());
+        switchLowLatency.setOnCheckedChangeListener((btn, isChecked) -> settingsPrefs.edit().putBoolean("LOW_LATENCY", isChecked).apply());
 
         tvTemp = findViewById(R.id.tvTemp);
         tvRx = findViewById(R.id.tvRx);
@@ -120,11 +117,6 @@ public class MainActivity extends Activity {
         startTelemetryEngine();
 
         btnAddCluster.setOnClickListener(v -> promptNewCluster());
-        btnInjectRules.setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("*/*");
-            startActivityForResult(intent, 2);
-        });
 
         if (checkSelfPermission(android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE, android.Manifest.permission.READ_EXTERNAL_STORAGE}, 102);
@@ -135,24 +127,6 @@ public class MainActivity extends Activity {
         } else {
             registerReceiver(logReceiver, new IntentFilter("DAEMON_LOG"));
         }
-    }
-
-    private String getFileName(Uri uri) {
-        String result = null;
-        if (uri.getScheme().equals("content")) {
-            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
-                if (cursor != null && cursor.moveToFirst()) {
-                    int index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-                    if (index >= 0) result = cursor.getString(index);
-                }
-            }
-        }
-        if (result == null) {
-            result = uri.getPath();
-            int cut = result.lastIndexOf('/');
-            if (cut != -1) result = result.substring(cut + 1);
-        }
-        return result;
     }
 
     private void startTelemetryEngine() {
@@ -403,7 +377,7 @@ public class MainActivity extends Activity {
     }
 
     private void executeRawShell(String clusterName, String cmd) {
-        String logHeader = "\n\n" + clusterName + "@daemon:~$ " + cmd;
+        String logHeader = "\n\n" + clusterName + "@indogo:~$ " + cmd;
         tvActiveLog.append(logHeader);
         if (!logsMap.containsKey(clusterName)) logsMap.put(clusterName, new StringBuilder());
         logsMap.get(clusterName).append(logHeader);
@@ -441,52 +415,23 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == RESULT_OK && data != null) {
-            if (requestCode == 1) {
-                try {
-                    String bins = prefs.getString(currentInjectCluster, "");
-                    String binName = currentInjectCluster.toLowerCase() + "_bin_" + System.currentTimeMillis();
-                    File destFile = new File(getFilesDir(), binName);
+        if (resultCode == RESULT_OK && data != null && requestCode == 1) {
+            try {
+                String bins = prefs.getString(currentInjectCluster, "");
+                String binName = currentInjectCluster.toLowerCase() + "_bin_" + System.currentTimeMillis();
+                File destFile = new File(getFilesDir(), binName);
 
-                    InputStream in = getContentResolver().openInputStream(data.getData());
-                    FileOutputStream out = new FileOutputStream(destFile);
-                    byte[] buffer = new byte[8192];
-                    int read;
-                    while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-                    in.close(); out.close();
+                InputStream in = getContentResolver().openInputStream(data.getData());
+                FileOutputStream out = new FileOutputStream(destFile);
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
+                in.close(); out.close();
 
-                    String newBins = bins.isEmpty() ? binName : bins + "," + binName;
-                    prefs.edit().putString(currentInjectCluster, newBins).apply();
-                    renderDynamicClusters(); 
-                } catch (Exception e) {}
-            } 
-            else if (requestCode == 2) {
-                try {
-                    String fileName = getFileName(data.getData());
-                    if (fileName == null || fileName.isEmpty()) {
-                        fileName = "rules_" + System.currentTimeMillis() + ".txt";
-                    }
-
-                    File blocklistsDir = new File(getFilesDir(), "blocklists");
-                    if (!blocklistsDir.exists()) blocklistsDir.mkdirs();
-                    
-                    File destFile = new File(blocklistsDir, fileName);
-                    InputStream in = getContentResolver().openInputStream(data.getData());
-                    FileOutputStream out = new FileOutputStream(destFile);
-                    byte[] buffer = new byte[8192];
-                    int read;
-                    while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);
-                    in.close(); out.close();
-
-                    new AlertDialog.Builder(this)
-                        .setTitle("Injeksi Berhasil")
-                        .setMessage("File berhasil disuntikkan sebagai: \n./blocklists/" + fileName)
-                        .setPositiveButton("OK", null)
-                        .show();
-                } catch (Exception e) {
-                    new AlertDialog.Builder(this).setMessage("Error: " + e.getMessage()).show();
-                }
-            }
+                String newBins = bins.isEmpty() ? binName : bins + "," + binName;
+                prefs.edit().putString(currentInjectCluster, newBins).apply();
+                renderDynamicClusters(); 
+            } catch (Exception e) {}
         }
     }
 
