@@ -74,7 +74,7 @@ public class IndogoVpnService extends VpnService {
 
             // 🔴 PERINGATAN ARSITEKTUR: Gunakan 'udp: tcp' agar DNS request dari OS dilewatkan via TCP jika Golang tidak support UDP
             File configFile = new File(getFilesDir(), "tun2socks.yml");
-            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'tcp'\n";
+            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
             fos.write(yaml.getBytes());
             fos.flush(); fos.getFD().sync(); fos.close();
