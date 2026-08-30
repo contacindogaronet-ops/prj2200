@@ -719,47 +719,31 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Dynamic ViewTraverser (Membajak Tab CONFIG)
-    private boolean isConfigHooked = false;
+    // 🔴 KUNCI ARSITEKTUR: UI Sejajar Bawah
+    private boolean isSettingsBtnAdded = false;
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (!isConfigHooked) {
-            final android.view.ViewGroup rootView = (android.view.ViewGroup) findViewById(android.R.id.content);
-            rootView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
-                @Override
-                public void onGlobalLayout() {
-                    if (!isConfigHooked) {
-                        isConfigHooked = findAndHookConfigTab(rootView);
-                    }
-                }
-            });
-        }
-    }
+        if (!isSettingsBtnAdded) {
+            android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                120 // Tinggi tombol
+            );
+            // Posisikan tepat di atas Bottom Navigation Bar (margin bottom 150px)
+            params.gravity = android.view.Gravity.BOTTOM;
+            params.setMargins(40, 0, 40, 150);
 
-    // Merayap ke dalam UI untuk mencari tombol bertuliskan "CONFIG"
-    private boolean findAndHookConfigTab(android.view.View view) {
-        if (view instanceof android.widget.TextView) {
-            android.widget.TextView tv = (android.widget.TextView) view;
-            if ("CONFIG".equalsIgnoreCase(tv.getText().toString().trim())) {
-                // Membajak aksi klik pada teks dan induknya (layout bottom bar)
-                tv.setOnClickListener(v -> showIndogoSettings());
-                android.view.View parent = (android.view.View) tv.getParent();
-                if (parent != null) {
-                    parent.setOnClickListener(v -> showIndogoSettings());
-                }
-                return true;
-            }
-        } else if (view instanceof android.view.ViewGroup) {
-            android.view.ViewGroup vg = (android.view.ViewGroup) view;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                if (findAndHookConfigTab(vg.getChildAt(i))) {
-                    return true;
-                }
-            }
+            android.widget.Button btn = new android.widget.Button(this);
+            btn.setText("⚙️ PENGATURAN V2RAY");
+            btn.setBackgroundColor(android.graphics.Color.parseColor("#37474F")); // Warna Elegan
+            btn.setTextColor(android.graphics.Color.WHITE);
+            btn.setElevation(10f);
+            btn.setOnClickListener(v -> showIndogoSettings());
+
+            addContentView(btn, params);
+            isSettingsBtnAdded = true;
         }
-        return false;
     }
 
     private void showIndogoSettings() {
@@ -782,7 +766,7 @@ public class MainActivity extends Activity {
         layout.addView(chkSniffing);
 
         android.widget.CheckBox chkUdp = new android.widget.CheckBox(this);
-        chkUdp.setText("SOCKS5 UDP");
+        chkUdp.setText("SOCKS5 UDP (Matikan = UDP-over-TCP port 2007)");
         chkUdp.setChecked(prefs.getBoolean("udp", true));
         layout.addView(chkUdp);
 

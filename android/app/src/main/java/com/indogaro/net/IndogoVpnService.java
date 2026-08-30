@@ -101,9 +101,9 @@ public class IndogoVpnService extends VpnService {
                 safeAddRoute(builder, "0.0.0.0", 0);
             }
             
-            // 🔴 KUNCI DOMAIN MURNI: Paksa Android mengirim DNS ke Subnet FakeDNS C++
+            // 🔴 KUNCI DOMAIN FAKEDNS
             if (enableFakeDns) {
-                safeAddDns(builder, "198.18.0.1"); // FakeDNS Controller IP
+                safeAddDns(builder, "198.18.0.1"); 
                 if (enableIPv6) safeAddDns(builder, "fc00::1");
             } else {
                 String[] dnsList = dns.split(",");
@@ -121,9 +121,11 @@ public class IndogoVpnService extends VpnService {
                 } catch (Exception e) {}
             }
 
+            // 🔴 SOLUSI MUTLAK ROUTING LOOP (ANTI SPAM)
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
-            vpnInterface = builder.establish();
+            try { builder.addDisallowedApplication("com.termux"); } catch (Exception e) {} 
 
+            vpnInterface = builder.establish();
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak FD.");
 
@@ -131,6 +133,7 @@ public class IndogoVpnService extends VpnService {
             StringBuilder yamlBuilder = new StringBuilder();
             yamlBuilder.append("tunnel:\n  mtu: ").append(mtu).append("\n  ipv4: true\n  ipv6: ").append(enableIPv6).append("\n");
             
+            // Jika Anda ingin UDP-Over-TCP ke 1 port (v2rayNG style), biarkan UI UDP OFF
             String udpMode = enableUdp ? "'udp'" : "'tcp'";
             yamlBuilder.append("socks5:\n  address: ").append(host).append("\n  port: ").append(port).append("\n  udp: ").append(udpMode).append("\n");
             
@@ -148,7 +151,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Settings Applied | Sniffing: " + enableSniffing + " | FakeDNS Forced: " + enableFakeDns);
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Settings Applied | Termux Bypassed (Loop Fixed) | FakeDNS: " + enableFakeDns);
 
             new Thread(() -> {
                 try {
