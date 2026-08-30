@@ -5,6 +5,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.drawable.Icon;
 import android.net.TrafficStats;
 import android.net.VpnService;
@@ -49,6 +50,14 @@ public class IndogoVpnService extends VpnService {
         isRunning = true;
         notifManager = getSystemService(NotificationManager.class);
 
+        // 🔴 ARSITEKTUR: Mengambil nilai dari UI Pengaturan
+        SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
+        boolean enableIPv6 = prefs.getBoolean("ipv6", true);
+        int mtu = prefs.getInt("mtu", 1500);
+        String dns = prefs.getString("dns", "1.1.1.1");
+        // SNI sniffing flag hanya bisa diurus di sisi Golang, kita passing ke log saja
+        boolean enableSniffing = prefs.getBoolean("sniffing", false);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel("VPN_GATEWAY", "Indogo Enterprise", NotificationManager.IMPORTANCE_LOW);
             notifManager.createNotificationChannel(channel);
@@ -57,14 +66,19 @@ public class IndogoVpnService extends VpnService {
         try {
             Builder builder = new Builder();
             builder.setSession("Indogo-" + cluster);
-            
-            // 🔴 KLONING ARSITEKTUR V2RAYNG
-            builder.setMtu(1500); // VPN MTU (default 1500)
-            builder.addAddress("10.10.14.2", 24); // VPN Interface Address 10.10.14.x
-            builder.addAddress("fc00::2", 128); // IPv6 Local Interface
+            builder.setMtu(mtu); 
+            builder.addAddress("10.10.14.2", 24); 
             builder.addRoute("0.0.0.0", 0);
-            builder.addRoute("::", 0);
-            builder.addDnsServer("1.1.1.1"); // VPN DNS (only IPv4/v6)
+            
+            String[] dnsList = dns.split(",");
+            for (String d : dnsList) {
+                builder.addDnsServer(d.trim());
+            }
+
+            if (enableIPv6) {
+                builder.addAddress("fc00::2", 128);
+                builder.addRoute("::", 0);
+            }
 
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
             vpnInterface = builder.establish();
@@ -72,9 +86,8 @@ public class IndogoVpnService extends VpnService {
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
 
-            // Konfigurasi Hev-Tun Engine Murni
             File configFile = new File(getFilesDir(), "tun2socks.yml");
-            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: true\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
+            String yaml = "tunnel:\n  mtu: " + mtu + "\n  ipv4: true\n  ipv6: " + enableIPv6 + "\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
             fos.write(yaml.getBytes());
             fos.flush(); fos.getFD().sync(); fos.close();
@@ -83,7 +96,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS Tunnel Active. Interface: 10.10.14.2 (Meniru v2rayNG)");
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Tunnel Active. IPv6:" + enableIPv6 + " SNI:" + enableSniffing + " MTU:" + mtu);
 
             new Thread(() -> {
                 try {
@@ -101,19 +114,15 @@ public class IndogoVpnService extends VpnService {
 
     private void setupNotification() {
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0);
-        
         Intent stopIntent = new Intent(this, IndogoVpnService.class);
         stopIntent.setAction("STOP_VPN");
         PendingIntent pStop = PendingIntent.getService(this, 0, stopIntent, flags);
-
         Intent switchIntent = new Intent(this, MainActivity.class);
         switchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pSwitch = PendingIntent.getActivity(this, 1, switchIntent, flags);
 
-        Notification.Action actionSwitch = new Notification.Action.Builder(
-            Icon.createWithResource(this, android.R.drawable.ic_menu_directions), "SWITCH CLUSTER", pSwitch).build();
-        Notification.Action actionStop = new Notification.Action.Builder(
-            Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "DISCONNECT", pStop).build();
+        Notification.Action actionSwitch = new Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_menu_directions), "SWITCH CLUSTER", pSwitch).build();
+        Notification.Action actionStop = new Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "DISCONNECT", pStop).build();
 
         notifBuilder = new Notification.Builder(this, "VPN_GATEWAY")
                 .setContentTitle("Indogo ➔ " + currentCluster)
@@ -127,23 +136,17 @@ public class IndogoVpnService extends VpnService {
     private void startSpeedometer() {
         lastRx = TrafficStats.getUidRxBytes(android.os.Process.myUid());
         lastTx = TrafficStats.getUidTxBytes(android.os.Process.myUid());
-        
         speedHandler.post(new Runnable() {
             @Override
             public void run() {
                 if (!isRunning) return;
                 long currentRx = TrafficStats.getUidRxBytes(android.os.Process.myUid());
                 long currentTx = TrafficStats.getUidTxBytes(android.os.Process.myUid());
-                
                 long rxDiff = currentRx - lastRx;
                 long txDiff = currentTx - lastTx;
-                
                 lastRx = currentRx; lastTx = currentTx;
-                
-                String speedText = "▼ " + formatSpeed(rxDiff) + "   |   ▲ " + formatSpeed(txDiff);
-                notifBuilder.setContentText(speedText);
+                notifBuilder.setContentText("▼ " + formatSpeed(rxDiff) + "   |   ▲ " + formatSpeed(txDiff));
                 notifManager.notify(2, notifBuilder.build());
-                
                 speedHandler.postDelayed(this, 1000);
             }
         });
@@ -161,12 +164,7 @@ public class IndogoVpnService extends VpnService {
         new Thread(() -> {
             try { hev.sockstun.TProxyService.TProxyStopService(); } catch (Throwable t) {}
         }).start();
-
-        try {
-            if (vpnInterface != null) {
-                vpnInterface.close(); vpnInterface = null;
-            }
-        } catch (Exception e) {}
+        try { if (vpnInterface != null) { vpnInterface.close(); vpnInterface = null; } } catch (Exception e) {}
         stopForeground(true);
         stopSelf();
     }
@@ -178,8 +176,5 @@ public class IndogoVpnService extends VpnService {
     }
 
     @Override
-    public void onDestroy() {
-        stopVpnTunnel();
-        super.onDestroy();
-    }
+    public void onDestroy() { stopVpnTunnel(); super.onDestroy(); }
 }

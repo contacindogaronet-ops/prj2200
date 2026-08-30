@@ -718,4 +718,66 @@ public class MainActivity extends Activity {
         btnClose.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
+
+    // 🔴 KUNCI ARSITEKTUR: UI Pengaturan Dinamis (Zero-XML Layout)
+    @Override
+    public boolean onCreateOptionsMenu(android.view.Menu menu) {
+        menu.add(0, 999, 0, "⚙️ Pengaturan").setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(android.view.MenuItem item) {
+        if (item.getItemId() == 999) {
+            showIndogoSettings();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void showIndogoSettings() {
+        android.content.SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 40);
+
+        android.widget.CheckBox chkIpv6 = new android.widget.CheckBox(this);
+        chkIpv6.setText("Enable IPv6 (Dual Stack)");
+        chkIpv6.setChecked(prefs.getBoolean("ipv6", true));
+        layout.addView(chkIpv6);
+
+        android.widget.CheckBox chkSniffing = new android.widget.CheckBox(this);
+        chkSniffing.setText("Enable SNI Sniffing (Wajib didukung di Golang)");
+        chkSniffing.setChecked(prefs.getBoolean("sniffing", false));
+        layout.addView(chkSniffing);
+
+        android.widget.EditText edtMtu = new android.widget.EditText(this);
+        edtMtu.setHint("VPN MTU (Default 1500)");
+        edtMtu.setText(String.valueOf(prefs.getInt("mtu", 1500)));
+        layout.addView(edtMtu);
+
+        android.widget.EditText edtDns = new android.widget.EditText(this);
+        edtDns.setHint("Custom DNS (contoh: 1.1.1.1)");
+        edtDns.setText(prefs.getString("dns", "1.1.1.1"));
+        layout.addView(edtDns);
+
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("Pengaturan Indogo")
+            .setView(layout)
+            .setPositiveButton("SIMPAN", (dialog, which) -> {
+                try {
+                    prefs.edit()
+                        .putBoolean("ipv6", chkIpv6.isChecked())
+                        .putBoolean("sniffing", chkSniffing.isChecked())
+                        .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
+                        .putString("dns", edtDns.getText().toString().trim())
+                        .apply();
+                    android.widget.Toast.makeText(this, "Disimpan! Restart VPN.", android.widget.Toast.LENGTH_LONG).show();
+                } catch (Exception e) {
+                    android.widget.Toast.makeText(this, "Gagal: Format tidak valid", android.widget.Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("BATAL", null)
+            .show();
+    }
 }
