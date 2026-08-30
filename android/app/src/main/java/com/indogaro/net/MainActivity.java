@@ -719,30 +719,47 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Injeksi Floating Button (Bypass XML Layout)
-    private boolean isSettingsBtnAdded = false;
+    // 🔴 KUNCI ARSITEKTUR: Dynamic ViewTraverser (Membajak Tab CONFIG)
+    private boolean isConfigHooked = false;
 
     @Override
     protected void onStart() {
         super.onStart();
-        if (!isSettingsBtnAdded) {
-            android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-            );
-            params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
-            params.setMargins(0, 150, 40, 0);
-
-            android.widget.Button btn = new android.widget.Button(this);
-            btn.setText("⚙️ SETTINGS");
-            btn.setBackgroundColor(android.graphics.Color.parseColor("#D84315")); // Deep Orange
-            btn.setTextColor(android.graphics.Color.WHITE);
-            btn.setElevation(20f);
-            btn.setOnClickListener(v -> showIndogoSettings());
-
-            addContentView(btn, params);
-            isSettingsBtnAdded = true;
+        if (!isConfigHooked) {
+            final android.view.ViewGroup rootView = (android.view.ViewGroup) findViewById(android.R.id.content);
+            rootView.getViewTreeObserver().addOnGlobalLayoutListener(new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                    if (!isConfigHooked) {
+                        isConfigHooked = findAndHookConfigTab(rootView);
+                    }
+                }
+            });
         }
+    }
+
+    // Merayap ke dalam UI untuk mencari tombol bertuliskan "CONFIG"
+    private boolean findAndHookConfigTab(android.view.View view) {
+        if (view instanceof android.widget.TextView) {
+            android.widget.TextView tv = (android.widget.TextView) view;
+            if ("CONFIG".equalsIgnoreCase(tv.getText().toString().trim())) {
+                // Membajak aksi klik pada teks dan induknya (layout bottom bar)
+                tv.setOnClickListener(v -> showIndogoSettings());
+                android.view.View parent = (android.view.View) tv.getParent();
+                if (parent != null) {
+                    parent.setOnClickListener(v -> showIndogoSettings());
+                }
+                return true;
+            }
+        } else if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup vg = (android.view.ViewGroup) view;
+            for (int i = 0; i < vg.getChildCount(); i++) {
+                if (findAndHookConfigTab(vg.getChildAt(i))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void showIndogoSettings() {
@@ -776,7 +793,7 @@ public class MainActivity extends Activity {
         layout.addView(txtVpn);
 
         android.widget.CheckBox chkIpv6 = new android.widget.CheckBox(this);
-        chkIpv6.setText("Enable IPv6");
+        chkIpv6.setText("Enable IPv6 (Dual Stack)");
         chkIpv6.setChecked(prefs.getBoolean("ipv6", true));
         layout.addView(chkIpv6);
 
@@ -786,7 +803,7 @@ public class MainActivity extends Activity {
         layout.addView(chkLocalDns);
 
         android.widget.CheckBox chkFakeDns = new android.widget.CheckBox(this);
-        chkFakeDns.setText("Enable fake DNS (Domain -> Proxy)");
+        chkFakeDns.setText("Enable fake DNS (Domain Interpolation)");
         chkFakeDns.setChecked(prefs.getBoolean("fakedns", false));
         layout.addView(chkFakeDns);
 
@@ -820,7 +837,7 @@ public class MainActivity extends Activity {
                         .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
                         .putString("dns", edtDns.getText().toString().trim())
                         .apply();
-                    android.widget.Toast.makeText(this, "Disimpan! Matikan dan nyalakan ulang VPN.", android.widget.Toast.LENGTH_LONG).show();
+                    android.widget.Toast.makeText(this, "Disimpan! Nyalakan ulang VPN.", android.widget.Toast.LENGTH_LONG).show();
                 } catch (Exception e) {
                     android.widget.Toast.makeText(this, "Gagal: Format Salah!", android.widget.Toast.LENGTH_SHORT).show();
                 }
