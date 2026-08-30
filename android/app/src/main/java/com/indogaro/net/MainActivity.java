@@ -746,8 +746,14 @@ public class MainActivity extends Activity {
         chkIpv6.setChecked(prefs.getBoolean("ipv6", true));
         layout.addView(chkIpv6);
 
+        // 🔴 KUNCI DOMAIN: FakeDNS Local DNS Resolver
+        android.widget.CheckBox chkFakeDns = new android.widget.CheckBox(this);
+        chkFakeDns.setText("Enable FakeDNS (Kirim Domain ATYP 0x03)");
+        chkFakeDns.setChecked(prefs.getBoolean("fakedns", true));
+        layout.addView(chkFakeDns);
+
         android.widget.CheckBox chkSniffing = new android.widget.CheckBox(this);
-        chkSniffing.setText("Enable SNI Sniffing (Wajib didukung di Golang)");
+        chkSniffing.setText("Enable Sniffing (Layer 7 TLS)");
         chkSniffing.setChecked(prefs.getBoolean("sniffing", false));
         layout.addView(chkSniffing);
 
@@ -768,6 +774,7 @@ public class MainActivity extends Activity {
                 try {
                     prefs.edit()
                         .putBoolean("ipv6", chkIpv6.isChecked())
+                        .putBoolean("fakedns", chkFakeDns.isChecked())
                         .putBoolean("sniffing", chkSniffing.isChecked())
                         .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
                         .putString("dns", edtDns.getText().toString().trim())

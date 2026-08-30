@@ -52,6 +52,7 @@ public class IndogoVpnService extends VpnService {
 
         SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
         boolean enableIPv6 = prefs.getBoolean("ipv6", true);
+        boolean enableFakeDns = prefs.getBoolean("fakedns", true);
         int mtu = prefs.getInt("mtu", 1500);
         String dns = prefs.getString("dns", "1.1.1.1");
 
@@ -65,19 +66,16 @@ public class IndogoVpnService extends VpnService {
             builder.setSession("Indogo-" + cluster);
             builder.setMtu(mtu); 
             builder.addAddress("10.10.14.2", 24); 
-
-            // 🔴 KUNCI ARSITEKTUR MUTLAK: DNS BYPASS ALGORITHM
-            // Kita pisahkan DNS pertama dan paksa ia keluar dari rute VPN
-            String mainDns = dns.split(",")[0].trim();
-            builder.addDnsServer(mainDns);
+            builder.addRoute("0.0.0.0", 0); 
             
-            // Eksekusi Algoritma Pengecualian Rute (Split-Tunneling)
-            bypassIpFromVpn(builder, mainDns);
+            String[] dnsList = dns.split(",");
+            for (String d : dnsList) {
+                builder.addDnsServer(d.trim());
+            }
 
             if (enableIPv6) {
                 builder.addAddress("fc00::2", 128);
-                // Hanya me-route trafik publik IPv6, menghindari kebocoran DNS lokal
-                builder.addRoute("2000::", 3); 
+                builder.addRoute("::", 0); 
             }
 
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
@@ -86,17 +84,30 @@ public class IndogoVpnService extends VpnService {
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
 
+            // 🔴 KUNCI ARSITEKTUR FAKEDNS: Merakit YAML Hev-Tun
+            StringBuilder yamlBuilder = new StringBuilder();
+            yamlBuilder.append("tunnel:\n  mtu: ").append(mtu).append("\n  ipv4: true\n  ipv6: ").append(enableIPv6).append("\n");
+            yamlBuilder.append("socks5:\n  address: ").append(host).append("\n  port: ").append(port).append("\n  udp: 'udp'\n");
+            
+            // Injeksi Modul FakeDNS ke dalam Hev-Tun
+            if (enableFakeDns) {
+                yamlBuilder.append("fakedns:\n");
+                yamlBuilder.append("  ipv4_range: 198.18.0.0/15\n");
+                if (enableIPv6) {
+                    yamlBuilder.append("  ipv6_range: fc00::/18\n");
+                }
+            }
+
             File configFile = new File(getFilesDir(), "tun2socks.yml");
-            String yaml = "tunnel:\n  mtu: " + mtu + "\n  ipv4: true\n  ipv6: " + enableIPv6 + "\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
-            fos.write(yaml.getBytes());
+            fos.write(yamlBuilder.toString().getBytes());
             fos.flush(); fos.getFD().sync(); fos.close();
 
             setupNotification();
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Tunnel Active. DNS Bypass Injection Murni Sukses.");
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Tunnel Active. FakeDNS: " + enableFakeDns);
 
             new Thread(() -> {
                 try {
@@ -109,28 +120,6 @@ public class IndogoVpnService extends VpnService {
         } catch (Exception e) {
             broadcastLog(cluster, "🛑 [VPN Error] " + e.getMessage());
             stopVpnTunnel();
-        }
-    }
-
-    // 🔴 ALGORITMA MATEMATIS: Memecah rute 0.0.0.0/0 menjadi 32 subnet untuk mengecualikan 1 IP DNS
-    private void bypassIpFromVpn(VpnService.Builder builder, String ipToBypass) {
-        try {
-            byte[] addr = java.net.InetAddress.getByName(ipToBypass).getAddress();
-            if (addr.length != 4) { 
-                builder.addRoute("0.0.0.0", 0); // Fallback
-                return; 
-            }
-            long ipLong = ((addr[0] & 0xFFL) << 24) | ((addr[1] & 0xFFL) << 16) | ((addr[2] & 0xFFL) << 8) | (addr[3] & 0xFFL);
-            long mask = 0;
-            for (int i = 0; i < 32; i++) {
-                long routeIp = ipLong ^ (1L << i);
-                routeIp = routeIp & ~mask;
-                String routeIpStr = String.format("%d.%d.%d.%d", (routeIp >> 24) & 0xFF, (routeIp >> 16) & 0xFF, (routeIp >> 8) & 0xFF, routeIp & 0xFF);
-                builder.addRoute(routeIpStr, 32 - i);
-                mask = (mask << 1) | 1L;
-            }
-        } catch (Exception e) {
-            builder.addRoute("0.0.0.0", 0);
         }
     }
 
@@ -148,7 +137,7 @@ public class IndogoVpnService extends VpnService {
 
         notifBuilder = new Notification.Builder(this, "VPN_GATEWAY")
                 .setContentTitle("Indogo ➔ " + currentCluster)
-                .setContentText("Menghitung metrik jaringan...")
+                .setContentText("Routing aktif...")
                 .setSmallIcon(android.R.drawable.ic_secure)
                 .setOnlyAlertOnce(true)
                 .addAction(actionSwitch)
