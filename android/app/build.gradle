@@ -17,8 +17,8 @@ android {
         applicationId "com.indogaro.net"
         minSdk 24
         targetSdk 28
-        versionCode 22
-        versionName "1.1.0.9"
+        versionCode 23
+        versionName "1.1.1.0"
     }
 
     buildTypes {

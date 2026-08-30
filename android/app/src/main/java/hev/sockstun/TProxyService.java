@@ -1,11 +1,12 @@
-package hev.socks5;
+package hev.sockstun;
 
-public class Tunnel {
+public class TProxyService {
     static { 
         System.loadLibrary("hev-socks5-tunnel"); 
     }
     
-    // 🔴 KUNCI ARSITEKTUR: Package name WAJIB hev.socks5, tidak boleh kurang/lebih 1 huruf pun
+    // 🔴 KUNCI ARSITEKTUR FINAL: Nama Class WAJIB TProxyService
     public native static void TunnelMain(String configPath, int tunFd);
+    public native static void TunnelMain(int tunFd, String configPath);
     public native static void TunnelQuit();
 }

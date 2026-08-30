@@ -54,7 +54,6 @@ public class IndogoVpnService extends VpnService {
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
 
-            // 🔴 KUNCI ARSITEKTUR: Format YAML Murni Sesuai Standar Hev-Socks5-Tunnel
             File configFile = new File(getFilesDir(), "tun2socks.yml");
             String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
@@ -71,12 +70,18 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notif);
 
             broadcastLog(cluster, "🛡️ [VPN GATEWAY] TUN FD (" + nativeFd + ") diamankan.");
-            broadcastLog(cluster, "🚀 [TUN2SOCKS] Mengeksekusi C++ Engine (Namespace: hev.socks5)...");
+            broadcastLog(cluster, "🚀 [TUN2SOCKS] Mengeksekusi C++ Engine (Target: hev.sockstun.TProxyService)...");
 
             new Thread(() -> {
                 try {
-                    // Eksekusi Absolut. C++ akan menemukan FindClass("hev/socks5/Tunnel") dengan sukses.
-                    hev.socks5.Tunnel.TunnelMain(configFile.getAbsolutePath(), nativeFd);
+                    // 🔴 EKSEKUSI ABSOLUT KE KELAS YANG TEPAT
+                    hev.sockstun.TProxyService.TunnelMain(configFile.getAbsolutePath(), nativeFd);
+                } catch (UnsatisfiedLinkError e1) {
+                    try {
+                        hev.sockstun.TProxyService.TunnelMain(nativeFd, configFile.getAbsolutePath());
+                    } catch (Throwable e2) {
+                        broadcastLog(cluster, "🛑 JNI SIGNATURE ERROR: " + e2.getMessage());
+                    }
                 } catch (Throwable t) {
                     broadcastLog(cluster, "🛑 CRASH INTERCEPTED: " + t.getMessage());
                 }
@@ -90,7 +95,7 @@ public class IndogoVpnService extends VpnService {
 
     private void stopVpnTunnel() {
         new Thread(() -> {
-            try { hev.socks5.Tunnel.TunnelQuit(); } catch (Throwable t) {}
+            try { hev.sockstun.TProxyService.TunnelQuit(); } catch (Throwable t) {}
         }).start();
 
         try {
