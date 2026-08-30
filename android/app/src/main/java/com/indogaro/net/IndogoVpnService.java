@@ -57,19 +57,24 @@ public class IndogoVpnService extends VpnService {
         try {
             Builder builder = new Builder();
             builder.setSession("Indogo-" + cluster);
-            builder.setMtu(1500);
-            builder.addAddress("172.19.0.1", 24);
+            
+            // 🔴 KLONING ARSITEKTUR V2RAYNG
+            builder.setMtu(1500); // VPN MTU (default 1500)
+            builder.addAddress("10.10.14.2", 24); // VPN Interface Address 10.10.14.x
+            builder.addAddress("fc00::2", 128); // IPv6 Local Interface
             builder.addRoute("0.0.0.0", 0);
-            builder.addDnsServer("8.8.8.8");
-            builder.addDnsServer("1.1.1.1");
+            builder.addRoute("::", 0);
+            builder.addDnsServer("1.1.1.1"); // VPN DNS (only IPv4/v6)
+
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
             vpnInterface = builder.establish();
 
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
 
+            // Konfigurasi Hev-Tun Engine Murni
             File configFile = new File(getFilesDir(), "tun2socks.yml");
-            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
+            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: true\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
             fos.write(yaml.getBytes());
             fos.flush(); fos.getFD().sync(); fos.close();
@@ -78,7 +83,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS Tunnel Active. Target: 127.0.0.1:2007");
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS Tunnel Active. Interface: 10.10.14.2 (Meniru v2rayNG)");
 
             new Thread(() -> {
                 try {
@@ -97,12 +102,10 @@ public class IndogoVpnService extends VpnService {
     private void setupNotification() {
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0);
         
-        // Tombol Disconnect (Tetap menggunakan Service)
         Intent stopIntent = new Intent(this, IndogoVpnService.class);
         stopIntent.setAction("STOP_VPN");
         PendingIntent pStop = PendingIntent.getService(this, 0, stopIntent, flags);
 
-        // 🔴 KOREKSI ARSITEKTUR: Tombol Switch membuka MainActivity dengan aman
         Intent switchIntent = new Intent(this, MainActivity.class);
         switchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pSwitch = PendingIntent.getActivity(this, 1, switchIntent, flags);
