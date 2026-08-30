@@ -1,10 +1,11 @@
 package com.indogaro.net;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
-import android.view.View;
+import android.view.Gravity;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -16,60 +17,76 @@ import android.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
-    private boolean isNativeConfigHooked = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Biarkan WebView/React Native memuat antarmuka default di sini
-    }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        final ViewGroup rootView = (ViewGroup) findViewById(android.R.id.content);
-        if (rootView != null) {
-            rootView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-                @Override
-                public void onGlobalLayout() {
-                    if (!isNativeConfigHooked) {
-                        isNativeConfigHooked = injectNativeConfigButton(rootView);
-                    }
-                }
-            });
-        }
-    }
+        // ROOT CONTAINER
+        LinearLayout rootLayout = new LinearLayout(this);
+        rootLayout.setLayoutParams(new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        rootLayout.setOrientation(LinearLayout.VERTICAL);
+        rootLayout.setGravity(Gravity.CENTER);
+        rootLayout.setBackgroundColor(Color.parseColor("#121824"));
+        rootLayout.setPadding(40, 60, 40, 60);
 
-    private boolean injectNativeConfigButton(View view) {
-        if (view instanceof Button) {
-            Button btn = (Button) view;
-            if (btn.getText().toString().toUpperCase().contains("CHECK FOR UPDATES")) {
-                ViewGroup parent = (ViewGroup) btn.getParent();
-                if (parent != null) {
-                    for(int i=0; i<parent.getChildCount(); i++) {
-                        View child = parent.getChildAt(i);
-                        if(child instanceof Button && ((Button)child).getText().toString().contains("⚙️ CORE ENGINE SETTINGS")) {
-                            return true;
-                        }
-                    }
-                    Button myBtn = new Button(this);
-                    myBtn.setText("⚙️ CORE ENGINE SETTINGS");
-                    myBtn.setBackgroundColor(android.graphics.Color.parseColor("#37474F"));
-                    myBtn.setTextColor(android.graphics.Color.WHITE);
-                    myBtn.setLayoutParams(btn.getLayoutParams());
-                    myBtn.setOnClickListener(v -> showIndogoSettings());
+        // HEADER
+        TextView txtTitle = new TextView(this);
+        txtTitle.setText("INDOGO NETWORK MATRIX");
+        txtTitle.setTextColor(Color.parseColor("#38BDF8"));
+        txtTitle.setTextSize(22f);
+        txtTitle.setTypeface(null, Typeface.BOLD);
+        txtTitle.setGravity(Gravity.CENTER);
+        txtTitle.setPadding(0, 0, 0, 20);
+        rootLayout.addView(txtTitle);
 
-                    parent.addView(myBtn, parent.indexOfChild(btn) + 1);
-                    return true;
-                }
-            }
-        } else if (view instanceof ViewGroup) {
-            ViewGroup vg = (ViewGroup) view;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                if (injectNativeConfigButton(vg.getChildAt(i))) return true;
-            }
-        }
-        return false;
+        TextView txtSubtitle = new TextView(this);
+        txtSubtitle.setText("Layer-3 TUN & Daemon Orchestrator");
+        txtSubtitle.setTextColor(Color.parseColor("#94A3B8"));
+        txtSubtitle.setTextSize(13f);
+        txtSubtitle.setGravity(Gravity.CENTER);
+        txtSubtitle.setPadding(0, 0, 0, 60);
+        rootLayout.addView(txtSubtitle);
+
+        // ACTION BUTTONS CONTAINER
+        LinearLayout btnContainer = new LinearLayout(this);
+        btnContainer.setOrientation(LinearLayout.VERTICAL);
+        btnContainer.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnContainer.setLayoutParams(containerParams);
+
+        // BUTTON: SETTINGS
+        Button btnSettings = new Button(this);
+        btnSettings.setText("⚙️ CORE ENGINE SETTINGS");
+        btnSettings.setBackgroundColor(Color.parseColor("#1E293B"));
+        btnSettings.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams btnParams1 = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnParams1.setMargins(0, 0, 0, 25);
+        btnSettings.setLayoutParams(btnParams1);
+        btnSettings.setOnClickListener(v -> showIndogoSettings());
+        btnContainer.addView(btnSettings);
+
+        // BUTTON: CHECK FOR UPDATES
+        Button btnUpdate = new Button(this);
+        btnUpdate.setText("🔄 CHECK FOR UPDATES");
+        btnUpdate.setBackgroundColor(Color.parseColor("#0284C7"));
+        btnUpdate.setTextColor(Color.WHITE);
+        LinearLayout.LayoutParams btnParams2 = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        btnUpdate.setLayoutParams(btnParams2);
+        btnUpdate.setOnClickListener(v -> new OTAUpdater(this).check(true));
+        btnContainer.addView(btnUpdate);
+
+        rootLayout.addView(btnContainer);
+
+        setContentView(rootLayout);
     }
 
     private void showIndogoSettings() {
@@ -82,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView txtCore = new TextView(this);
         txtCore.setText("Core Settings");
-        txtCore.setTextColor(android.graphics.Color.parseColor("#FF9800"));
+        txtCore.setTextColor(Color.parseColor("#FF9800"));
         txtCore.setPadding(0, 0, 0, 10);
         layout.addView(txtCore);
 
@@ -98,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView txtVpn = new TextView(this);
         txtVpn.setText("VPN Settings");
-        txtVpn.setTextColor(android.graphics.Color.parseColor("#FF9800"));
+        txtVpn.setTextColor(Color.parseColor("#FF9800"));
         txtVpn.setPadding(0, 40, 0, 10);
         layout.addView(txtVpn);
 
@@ -119,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView txtAdv = new TextView(this);
         txtAdv.setText("Advanced Engine (Bahaya)");
-        txtAdv.setTextColor(android.graphics.Color.parseColor("#E53935"));
+        txtAdv.setTextColor(Color.parseColor("#E53935"));
         txtAdv.setPadding(0, 40, 0, 10);
         layout.addView(txtAdv);
 
