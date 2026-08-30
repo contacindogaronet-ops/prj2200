@@ -50,13 +50,10 @@ public class IndogoVpnService extends VpnService {
         isRunning = true;
         notifManager = getSystemService(NotificationManager.class);
 
-        // 🔴 ARSITEKTUR: Mengambil nilai dari UI Pengaturan
         SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
         boolean enableIPv6 = prefs.getBoolean("ipv6", true);
         int mtu = prefs.getInt("mtu", 1500);
         String dns = prefs.getString("dns", "1.1.1.1");
-        // SNI sniffing flag hanya bisa diurus di sisi Golang, kita passing ke log saja
-        boolean enableSniffing = prefs.getBoolean("sniffing", false);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel("VPN_GATEWAY", "Indogo Enterprise", NotificationManager.IMPORTANCE_LOW);
@@ -68,16 +65,19 @@ public class IndogoVpnService extends VpnService {
             builder.setSession("Indogo-" + cluster);
             builder.setMtu(mtu); 
             builder.addAddress("10.10.14.2", 24); 
-            builder.addRoute("0.0.0.0", 0);
+
+            // 🔴 KUNCI ARSITEKTUR MUTLAK: DNS BYPASS ALGORITHM
+            // Kita pisahkan DNS pertama dan paksa ia keluar dari rute VPN
+            String mainDns = dns.split(",")[0].trim();
+            builder.addDnsServer(mainDns);
             
-            String[] dnsList = dns.split(",");
-            for (String d : dnsList) {
-                builder.addDnsServer(d.trim());
-            }
+            // Eksekusi Algoritma Pengecualian Rute (Split-Tunneling)
+            bypassIpFromVpn(builder, mainDns);
 
             if (enableIPv6) {
                 builder.addAddress("fc00::2", 128);
-                builder.addRoute("::", 0);
+                // Hanya me-route trafik publik IPv6, menghindari kebocoran DNS lokal
+                builder.addRoute("2000::", 3); 
             }
 
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
@@ -96,7 +96,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Tunnel Active. IPv6:" + enableIPv6 + " SNI:" + enableSniffing + " MTU:" + mtu);
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Tunnel Active. DNS Bypass Injection Murni Sukses.");
 
             new Thread(() -> {
                 try {
@@ -109,6 +109,28 @@ public class IndogoVpnService extends VpnService {
         } catch (Exception e) {
             broadcastLog(cluster, "🛑 [VPN Error] " + e.getMessage());
             stopVpnTunnel();
+        }
+    }
+
+    // 🔴 ALGORITMA MATEMATIS: Memecah rute 0.0.0.0/0 menjadi 32 subnet untuk mengecualikan 1 IP DNS
+    private void bypassIpFromVpn(VpnService.Builder builder, String ipToBypass) {
+        try {
+            byte[] addr = java.net.InetAddress.getByName(ipToBypass).getAddress();
+            if (addr.length != 4) { 
+                builder.addRoute("0.0.0.0", 0); // Fallback
+                return; 
+            }
+            long ipLong = ((addr[0] & 0xFFL) << 24) | ((addr[1] & 0xFFL) << 16) | ((addr[2] & 0xFFL) << 8) | (addr[3] & 0xFFL);
+            long mask = 0;
+            for (int i = 0; i < 32; i++) {
+                long routeIp = ipLong ^ (1L << i);
+                routeIp = routeIp & ~mask;
+                String routeIpStr = String.format("%d.%d.%d.%d", (routeIp >> 24) & 0xFF, (routeIp >> 16) & 0xFF, (routeIp >> 8) & 0xFF, routeIp & 0xFF);
+                builder.addRoute(routeIpStr, 32 - i);
+                mask = (mask << 1) | 1L;
+            }
+        } catch (Exception e) {
+            builder.addRoute("0.0.0.0", 0);
         }
     }
 
