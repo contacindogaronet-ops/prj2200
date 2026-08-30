@@ -81,51 +81,40 @@ public class IndogoVpnService extends VpnService {
             try { builder.addAddress("10.10.14.2", 24); } catch (Exception e) {}
             
             if (bypassLan) {
-                safeAddRoute(builder, "1.0.0.0", 8);
-                safeAddRoute(builder, "2.0.0.0", 7);
-                safeAddRoute(builder, "4.0.0.0", 6);
-                safeAddRoute(builder, "8.0.0.0", 7);
-                safeAddRoute(builder, "11.0.0.0", 8);
-                safeAddRoute(builder, "12.0.0.0", 6);
-                safeAddRoute(builder, "16.0.0.0", 4);
-                safeAddRoute(builder, "32.0.0.0", 3);
-                safeAddRoute(builder, "64.0.0.0", 2);
-                safeAddRoute(builder, "128.0.0.0", 3);
-                safeAddRoute(builder, "160.0.0.0", 5);
-                safeAddRoute(builder, "168.0.0.0", 6);
-                safeAddRoute(builder, "172.0.0.0", 12);
-                safeAddRoute(builder, "172.32.0.0", 11);
-                safeAddRoute(builder, "172.64.0.0", 10);
-                safeAddRoute(builder, "172.128.0.0", 9);
-                safeAddRoute(builder, "173.0.0.0", 8);
-                safeAddRoute(builder, "174.0.0.0", 7);
-                safeAddRoute(builder, "176.0.0.0", 4);
-                safeAddRoute(builder, "192.0.0.0", 9);
-                safeAddRoute(builder, "192.128.0.0", 11);
-                safeAddRoute(builder, "192.160.0.0", 13);
-                safeAddRoute(builder, "192.169.0.0", 16);
-                safeAddRoute(builder, "192.170.0.0", 15);
-                safeAddRoute(builder, "192.172.0.0", 14);
-                safeAddRoute(builder, "192.176.0.0", 12);
-                safeAddRoute(builder, "192.192.0.0", 10);
-                safeAddRoute(builder, "193.0.0.0", 8);
-                safeAddRoute(builder, "194.0.0.0", 7);
-                safeAddRoute(builder, "196.0.0.0", 6);
-                safeAddRoute(builder, "200.0.0.0", 5);
-                safeAddRoute(builder, "208.0.0.0", 4);
+                safeAddRoute(builder, "1.0.0.0", 8); safeAddRoute(builder, "2.0.0.0", 7);
+                safeAddRoute(builder, "4.0.0.0", 6); safeAddRoute(builder, "8.0.0.0", 7);
+                safeAddRoute(builder, "11.0.0.0", 8); safeAddRoute(builder, "12.0.0.0", 6);
+                safeAddRoute(builder, "16.0.0.0", 4); safeAddRoute(builder, "32.0.0.0", 3);
+                safeAddRoute(builder, "64.0.0.0", 2); safeAddRoute(builder, "128.0.0.0", 3);
+                safeAddRoute(builder, "160.0.0.0", 5); safeAddRoute(builder, "168.0.0.0", 6);
+                safeAddRoute(builder, "172.0.0.0", 12); safeAddRoute(builder, "172.32.0.0", 11);
+                safeAddRoute(builder, "172.64.0.0", 10); safeAddRoute(builder, "172.128.0.0", 9);
+                safeAddRoute(builder, "173.0.0.0", 8); safeAddRoute(builder, "174.0.0.0", 7);
+                safeAddRoute(builder, "176.0.0.0", 4); safeAddRoute(builder, "192.0.0.0", 9);
+                safeAddRoute(builder, "192.128.0.0", 11); safeAddRoute(builder, "192.160.0.0", 13);
+                safeAddRoute(builder, "192.169.0.0", 16); safeAddRoute(builder, "192.170.0.0", 15);
+                safeAddRoute(builder, "192.172.0.0", 14); safeAddRoute(builder, "192.176.0.0", 12);
+                safeAddRoute(builder, "192.192.0.0", 10); safeAddRoute(builder, "193.0.0.0", 8);
+                safeAddRoute(builder, "194.0.0.0", 7); safeAddRoute(builder, "196.0.0.0", 6);
+                safeAddRoute(builder, "200.0.0.0", 5); safeAddRoute(builder, "208.0.0.0", 4);
             } else {
                 safeAddRoute(builder, "0.0.0.0", 0);
             }
             
-            String[] dnsList = dns.split(",");
-            for (String d : dnsList) {
-                String cleanDns = d.trim();
-                if (!cleanDns.isEmpty()) safeAddDns(builder, cleanDns);
+            // 🔴 KUNCI DOMAIN MURNI: Paksa Android mengirim DNS ke Subnet FakeDNS C++
+            if (enableFakeDns) {
+                safeAddDns(builder, "198.18.0.1"); // FakeDNS Controller IP
+                if (enableIPv6) safeAddDns(builder, "fc00::1");
+            } else {
+                String[] dnsList = dns.split(",");
+                for (String d : dnsList) {
+                    String cleanDns = d.trim();
+                    if (!cleanDns.isEmpty()) safeAddDns(builder, cleanDns);
+                }
+                if (enableLocalDns) safeAddDns(builder, "127.0.0.1");
             }
-            if (enableLocalDns) safeAddDns(builder, "127.0.0.1");
 
             if (enableIPv6) {
-                // 🔴 KOREKSI KERNEL PANIC: Ubah prefix dari 128 menjadi 64
                 try {
                     builder.addAddress("fc00::2", 64);
                     builder.addRoute("::", 0); 
@@ -138,6 +127,7 @@ public class IndogoVpnService extends VpnService {
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak FD.");
 
+            // 🔴 YAML CONFIG BUILDER
             StringBuilder yamlBuilder = new StringBuilder();
             yamlBuilder.append("tunnel:\n  mtu: ").append(mtu).append("\n  ipv4: true\n  ipv6: ").append(enableIPv6).append("\n");
             
@@ -158,7 +148,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Settings Applied | Sniffing: " + enableSniffing + " | FakeDNS: " + enableFakeDns);
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Settings Applied | Sniffing: " + enableSniffing + " | FakeDNS Forced: " + enableFakeDns);
 
             new Thread(() -> {
                 try {
