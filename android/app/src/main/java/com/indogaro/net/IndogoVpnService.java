@@ -51,17 +51,16 @@ public class IndogoVpnService extends VpnService {
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
             vpnInterface = builder.establish();
 
-            // 🔴 KUNCI ARSITEKTUR 1: Ekstraksi Aman & Perlindungan Garbage Collector
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
 
-            // 🔴 KUNCI ARSITEKTUR 2: YAML Murni & Flush Paksa ke Storage
+            // 🔴 KUNCI ARSITEKTUR: Format YAML Murni Sesuai Standar Hev-Socks5-Tunnel
             File configFile = new File(getFilesDir(), "tun2socks.yml");
-            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: udp\n";
+            String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
             fos.write(yaml.getBytes());
             fos.flush();
-            fos.getFD().sync(); // Paksa OS menulis secara fisik sebelum C++ membacanya
+            fos.getFD().sync(); 
             fos.close();
 
             Notification notif = new Notification.Builder(this, "VPN_GATEWAY")
@@ -71,21 +70,15 @@ public class IndogoVpnService extends VpnService {
                     .build();
             startForeground(2, notif);
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] TUN FD (" + nativeFd + ") diamankan dari Java GC.");
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] TUN FD (" + nativeFd + ") diamankan.");
+            broadcastLog(cluster, "🚀 [TUN2SOCKS] Mengeksekusi C++ Engine (Namespace: hev.socks5)...");
 
-            // 🔴 KUNCI ARSITEKTUR 3: Pengeksekusi JNI Tahan Banting (Bulletproof Execution)
             new Thread(() -> {
                 try {
-                    hev.sockstun.Tunnel.TunnelMain(configFile.getAbsolutePath(), nativeFd);
-                } catch (UnsatisfiedLinkError e1) {
-                    broadcastLog(cluster, "⚠️ Varian JNI A ditolak. Mencoba Varian B...");
-                    try {
-                        hev.sockstun.Tunnel.TunnelMain(nativeFd, configFile.getAbsolutePath());
-                    } catch (UnsatisfiedLinkError e2) {
-                        broadcastLog(cluster, "🛑 FATAL: Signature JNI .so tidak cocok dengan versi 8.0!");
-                    }
+                    // Eksekusi Absolut. C++ akan menemukan FindClass("hev/socks5/Tunnel") dengan sukses.
+                    hev.socks5.Tunnel.TunnelMain(configFile.getAbsolutePath(), nativeFd);
                 } catch (Throwable t) {
-                    broadcastLog(cluster, "🛑 NATIVE CRASH INTERCEPTED: " + t.getMessage());
+                    broadcastLog(cluster, "🛑 CRASH INTERCEPTED: " + t.getMessage());
                 }
             }).start();
 
@@ -97,7 +90,7 @@ public class IndogoVpnService extends VpnService {
 
     private void stopVpnTunnel() {
         new Thread(() -> {
-            try { hev.sockstun.Tunnel.TunnelQuit(); } catch (Throwable t) {}
+            try { hev.socks5.Tunnel.TunnelQuit(); } catch (Throwable t) {}
         }).start();
 
         try {
