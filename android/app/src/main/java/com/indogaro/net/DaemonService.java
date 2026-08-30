@@ -14,14 +14,15 @@ import android.os.PowerManager;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DaemonService extends Service {
-    private final Map<String, Process> activeProcesses = new HashMap<>();
-    private final Map<String, Boolean> stopFlags = new HashMap<>(); 
+    // 🔴 KUNCI ARSITEKTUR: Wajib ConcurrentHashMap untuk cegah Race Condition
+    private final Map<String, Process> activeProcesses = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> stopFlags = new ConcurrentHashMap<>();
     private SharedPreferences settingsPrefs;
     private SharedPreferences clusterPrefs;
     private PowerManager.WakeLock wakeLock;
@@ -31,29 +32,42 @@ public class DaemonService extends Service {
         super.onCreate();
         settingsPrefs = getSharedPreferences("DaemonSettings", Context.MODE_PRIVATE);
         clusterPrefs = getSharedPreferences("ClusterMatrix", Context.MODE_PRIVATE);
-        
+
         if (settingsPrefs.getBoolean("WAKELOCK", true)) {
             PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Indogo::CpuWakeLock");
-            wakeLock.acquire(); 
+            wakeLock.acquire();
         }
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel("DAEMON", "Daemon", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
-        Notification notif = new Notification.Builder(this, "DAEMON").setContentTitle("Indogo Matrix").setContentText("Orchestrator Standby...").setSmallIcon(android.R.drawable.ic_media_play).build();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        else startForeground(1, notif);
+        
+        Notification notif = new Notification.Builder(this, "DAEMON")
+                .setContentTitle("Indogo Matrix")
+                .setContentText("Orchestrator Standby...")
+                .setSmallIcon(android.R.drawable.ic_media_play)
+                .build();
+                
+        // 🔴 PENCEGAHAN CRASH API 31+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(1, notif);
+            }
+        } catch (Exception e) {
+            // OS menolak background start, fallback silent
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
             String action = intent.getAction();
-            
+
             if ("AUTO_IGNITION".equals(action)) {
-                // 🔴 FITUR: Boot Auto-Ignition
                 Set<String> activeClusters = clusterPrefs.getStringSet("ACTIVE_CLUSTERS", new HashSet<>());
                 for (String cluster : activeClusters) {
                     String bins = clusterPrefs.getString(cluster, "");
@@ -64,18 +78,17 @@ public class DaemonService extends Service {
                 }
             } else if ("START_CLUSTER".equals(action)) {
                 String cluster = intent.getStringExtra("CLUSTER");
-                String bins = intent.getStringExtra("BINS"); 
+                String bins = intent.getStringExtra("BINS");
                 if (bins != null && !bins.isEmpty()) {
-                    stopFlags.put(cluster, false); 
-                    saveClusterState(cluster, true); // Simpan state aktif
+                    stopFlags.put(cluster, false);
+                    saveClusterState(cluster, true);
                     for (String bin : bins.split(",")) executeBinary(cluster, bin);
                 }
             } else if ("STOP_CLUSTER".equals(action)) {
                 String cluster = intent.getStringExtra("CLUSTER");
                 killCluster(cluster);
-                saveClusterState(cluster, false); // Simpan state mati
+                saveClusterState(cluster, false);
             } else if ("PANIC_KILL_ALL".equals(action)) {
-                // 🔴 FITUR: Zombie Annihilator (Panic Button)
                 annihilateZombies();
             }
         }
@@ -101,34 +114,34 @@ public class DaemonService extends Service {
 
         new Thread(() -> {
             boolean keepRunning = true;
-            
+
             while (keepRunning) {
-                if (stopFlags.getOrDefault(cluster, false)) break; 
-                
+                if (stopFlags.getOrDefault(cluster, false)) break;
+
                 try {
                     ProcessBuilder pb = new ProcessBuilder(binFile.getAbsolutePath());
                     pb.directory(getFilesDir());
                     pb.redirectErrorStream(true);
-                    
+
                     Map<String, String> env = pb.environment();
                     if (settingsPrefs.getBoolean("LOW_LATENCY", false)) {
                         env.put("GOGC", "500");
-                        env.put("GOMAXPROCS", "2"); 
+                        env.put("GOMAXPROCS", "2");
                     } else {
-                        env.put("GOMEMLIMIT", "128MiB"); 
+                        env.put("GOMEMLIMIT", "128MiB");
                     }
-                    
+
                     Process process = pb.start();
                     activeProcesses.put(processKey, process);
-                    
+
                     broadcastLog(cluster, "🚀 Mengeksekusi biner: " + binName);
                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
                     String line;
                     while ((line = reader.readLine()) != null) broadcastLog(cluster, "[" + binName + "] " + line);
-                    
-                    process.waitFor(); 
+
+                    process.waitFor();
                     activeProcesses.remove(processKey);
-                    
+
                     if (stopFlags.getOrDefault(cluster, false)) {
                         keepRunning = false;
                         broadcastLog(cluster, "💀 Biner dihentikan oleh User: " + binName);
@@ -148,27 +161,38 @@ public class DaemonService extends Service {
     }
 
     private void killCluster(String cluster) {
-        stopFlags.put(cluster, true); 
+        stopFlags.put(cluster, true);
         broadcastLog(cluster, "⚠️ Menerima sinyal pemusnahan...");
         for (Map.Entry<String, Process> entry : activeProcesses.entrySet()) {
             if (entry.getKey().startsWith(cluster + "_")) {
-                entry.getValue().destroy();
+                Process p = entry.getValue();
+                // 🔴 NATIVE HARD KILL: Paksa OS mengirim SIGKILL (kill -9)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.destroyForcibly();
+                else p.destroy();
+                
                 broadcastLog(cluster, "🔪 Membunuh proses: " + entry.getKey());
             }
         }
     }
 
-    // 🔴 KUNCI ARSITEKTUR: Algoritma Pembantai Zombie Process
     private void annihilateZombies() {
         for (String cluster : clusterPrefs.getString("CLUSTER_LIST", "").split(",")) {
-            stopFlags.put(cluster, true);
-            saveClusterState(cluster, false);
+            if (!cluster.isEmpty()) {
+                stopFlags.put(cluster, true);
+                saveClusterState(cluster, false);
+            }
         }
-        activeProcesses.clear(); // Bersihkan referensi Java
         
+        // Pemusnahan Native JVM-Level
+        for (Process p : activeProcesses.values()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.destroyForcibly();
+            else p.destroy();
+        }
+        activeProcesses.clear();
+
+        // 🔴 FALLBACK: Tembak Kernel Linux (opsional jika proses benar-benar lolos)
         new Thread(() -> {
             try {
-                // Tembak brutal level Kernel Linux: Cari proses di direktori kita dan paksa mati
                 String appDir = getFilesDir().getAbsolutePath();
                 String killCmd = "ps -A | grep '" + appDir + "' | awk '{print $2}' | xargs kill -9";
                 Process p = Runtime.getRuntime().exec(new String[]{"sh", "-c", killCmd});

@@ -19,7 +19,7 @@ import java.io.FileOutputStream;
 public class IndogoVpnService extends VpnService {
     private ParcelFileDescriptor vpnInterface = null;
     private int nativeFd = -1;
-    private boolean isRunning = false;
+    private volatile boolean isRunning = false; // 🔴 FIXED: Thread-safe flag
     private NotificationManager notifManager;
     private Notification.Builder notifBuilder;
     private String currentCluster = "UNKNOWN";
@@ -36,11 +36,11 @@ public class IndogoVpnService extends VpnService {
         try { builder.addDnsServer(dns); } catch (Exception ignored) {}
     }
 
-    // 🔴 ALGORITMA MATEMATIS: Memecah rute 0.0.0.0/0 menjadi 32 subnet untuk mengecualikan 1 IP (Kill Port 53)
+    // 🔴 ALGORITMA MATEMATIS: Memecah rute 0.0.0.0/0 menjadi 32 subnet untuk mengecualikan 1 IP
     private void bypassIpFromVpn(VpnService.Builder builder, String ipToBypass) {
         try {
             byte[] addr = java.net.InetAddress.getByName(ipToBypass).getAddress();
-            if (addr.length != 4) return; 
+            if (addr.length != 4) return;
             long ipLong = ((addr[0] & 0xFFL) << 24) | ((addr[1] & 0xFFL) << 16) | ((addr[2] & 0xFFL) << 8) | (addr[3] & 0xFFL);
             long mask = 0;
             for (int i = 0; i < 32; i++) {
@@ -80,7 +80,7 @@ public class IndogoVpnService extends VpnService {
         boolean enableIPv6 = prefs.getBoolean("ipv6", true);
         boolean enableFakeDns = prefs.getBoolean("fakedns", false);
         boolean bypassLan = prefs.getBoolean("bypass_lan", false);
-        boolean kill53 = prefs.getBoolean("kill_53", false); // Parameter Anti-Spam
+        boolean kill53 = prefs.getBoolean("kill_53", false);
         int mtu = prefs.getInt("mtu", 1500);
         String dns = prefs.getString("dns", "8.8.8.8, 1.1.1.1");
 
@@ -88,22 +88,21 @@ public class IndogoVpnService extends VpnService {
             NotificationChannel channel = new NotificationChannel("VPN_GATEWAY", "Indogo Enterprise", NotificationManager.IMPORTANCE_LOW);
             notifManager.createNotificationChannel(channel);
         }
-        
+
         try {
             Builder builder = new Builder();
             builder.setSession("Indogo-" + cluster);
-            builder.setMtu(mtu); 
-            
+            builder.setMtu(mtu);
+
             try { builder.addAddress("10.10.14.2", 24); } catch (Exception e) {}
-            
+
             if (kill53) {
-                // 🔴 EKSEKUSI KILL PORT 53: Merutekan seluruh internet KECUALI IP DNS
                 String[] dnsList = dns.split(",");
                 for (String d : dnsList) {
                     String cleanDns = d.trim();
                     if (!cleanDns.isEmpty()) {
                         bypassIpFromVpn(builder, cleanDns);
-                        safeAddDns(builder, cleanDns); // Paksa Android menggunakan DNS ini di luar VPN
+                        safeAddDns(builder, cleanDns);
                     }
                 }
             } else if (bypassLan) {
@@ -129,7 +128,7 @@ public class IndogoVpnService extends VpnService {
 
             if (!kill53) {
                 if (enableFakeDns) {
-                    safeAddDns(builder, "198.18.0.1"); 
+                    safeAddDns(builder, "198.18.0.1");
                     if (enableIPv6) safeAddDns(builder, "fc00::1");
                 } else {
                     String[] dnsList = dns.split(",");
@@ -143,12 +142,12 @@ public class IndogoVpnService extends VpnService {
             if (enableIPv6) {
                 try {
                     builder.addAddress("fc00::2", 64);
-                    builder.addRoute("::", 0); 
+                    builder.addRoute("::", 0);
                 } catch (Exception e) {}
             }
 
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
-            try { builder.addDisallowedApplication("com.termux"); } catch (Exception e) {} 
+            try { builder.addDisallowedApplication("com.termux"); } catch (Exception e) {}
 
             vpnInterface = builder.establish();
             nativeFd = vpnInterface.getFd();
@@ -156,10 +155,10 @@ public class IndogoVpnService extends VpnService {
 
             StringBuilder yamlBuilder = new StringBuilder();
             yamlBuilder.append("tunnel:\n  mtu: ").append(mtu).append("\n  ipv4: true\n  ipv6: ").append(enableIPv6).append("\n");
-            
+
             String udpMode = enableUdp ? "'udp'" : "'tcp'";
             yamlBuilder.append("socks5:\n  address: ").append(host).append("\n  port: ").append(port).append("\n  udp: ").append(udpMode).append("\n");
-            
+
             if (enableFakeDns) {
                 yamlBuilder.append("fakedns:\n  ipv4_range: 198.18.0.0/15\n");
                 if (enableIPv6) { yamlBuilder.append("  ipv6_range: fc00::/18\n"); }
@@ -171,7 +170,14 @@ public class IndogoVpnService extends VpnService {
             fos.flush(); fos.getFD().sync(); fos.close();
 
             setupNotification();
-            startForeground(2, notifBuilder.build());
+            
+            // 🔴 FIXED: Pencegahan exception Foreground Service pada API tinggi
+            try {
+                startForeground(2, notifBuilder.build());
+            } catch (Exception fgException) {
+                broadcastLog(cluster, "⚠️ Warning: Foreground Service tertunda oleh OS.");
+            }
+            
             startSpeedometer();
 
             broadcastLog(cluster, "🛡️ [VPN GATEWAY] Settings Applied | Kill Port 53: " + kill53 + " | UDP: " + enableUdp);

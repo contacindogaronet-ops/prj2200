@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
@@ -16,8 +16,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Indogo"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-        
+        android:theme="@style/Theme.AppCompat.NoActionBar">
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.indogaro.net.provider"
@@ -35,25 +35,25 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".DaemonService" 
-                 android:exported="false"
-                 android:foregroundServiceType="dataSync" />
+        <service android:name=".DaemonService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <!-- 🔴 KUNCI ARSITEKTUR: Layanan Gateway VPN (Layer-3 TUN) -->
         <service android:name=".IndogoVpnService"
-                 android:permission="android.permission.BIND_VPN_SERVICE"
-                 android:exported="false">
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
         </service>
 
-        <receiver android:name=".BootReceiver" android:exported="true">
+        <receiver android:name=".BootReceiver" android:exported="true" android:directBootAware="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-        
+
     </application>
 </manifest>

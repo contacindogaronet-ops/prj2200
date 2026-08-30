@@ -36,7 +36,7 @@ import java.net.URL;
 public class OTAUpdater {
     private Activity activity;
     private static final String GITHUB_API = "https://api.github.com/repos/contacindogaronet-ops/prj2200/releases/latest";
-    private static final long AUTO_CHECK_COOLDOWN_MS = 4 * 60 * 60 * 1000; 
+    private static final long AUTO_CHECK_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
     public OTAUpdater(Activity activity) {
         this.activity = activity;
@@ -57,9 +57,9 @@ public class OTAUpdater {
                 HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_API).openConnection();
                 conn.setRequestProperty("User-Agent", "Indogo-OTA-Engine");
                 conn.setConnectTimeout(10000);
-                
+
                 if (conn.getResponseCode() != 200) throw new Exception("GitHub API menolak koneksi.");
-                
+
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder response = new StringBuilder();
                 String line;
@@ -71,11 +71,14 @@ public class OTAUpdater {
                 String changelog = json.getString("body");
                 String publishDate = json.getString("published_at").split("T")[0];
                 JSONArray assets = json.getJSONArray("assets");
-                
+
                 if (assets.length() == 0) throw new Exception("Tidak ada file APK pada release ini.");
                 String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
 
                 new Handler(Looper.getMainLooper()).post(() -> {
+                    // 🔴 PENCEGAHAN CRASH: Window BadTokenException (Lifecycle Check)
+                    if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+
                     boolean isUpdateAvailable = !currentVersion.equals(latestVersion);
                     if (isUpdateAvailable) {
                         showBottomSheet(true, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
@@ -86,9 +89,11 @@ public class OTAUpdater {
                 });
             } catch (Exception e) {
                 if (isManual) {
-                    new Handler(Looper.getMainLooper()).post(() -> 
-                        showBottomSheet(false, "ERROR", "ERROR", e.getMessage(), "--", null)
-                    );
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
+                            showBottomSheet(false, "ERROR", "ERROR", e.getMessage(), "--", null);
+                        }
+                    });
                 }
             }
         }).start();
@@ -98,7 +103,7 @@ public class OTAUpdater {
         Dialog bottomDialog = new Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
         View view = LayoutInflater.from(activity).inflate(R.layout.dialog_update_bottom, null);
         bottomDialog.setContentView(view);
-        
+
         Window window = bottomDialog.getWindow();
         if (window != null) {
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -115,8 +120,7 @@ public class OTAUpdater {
         LinearLayout layoutProgress = view.findViewById(R.id.layoutProgress);
         ProgressBar progressBar = view.findViewById(R.id.progressBar);
         TextView tvProgressText = view.findViewById(R.id.tvProgressText);
-        
-        // Deklarasi tombol ganda
+
         Button btnCancel = view.findViewById(R.id.btnUpdateCancel);
         Button btnAction = view.findViewById(R.id.btnUpdateAction);
 
@@ -128,7 +132,7 @@ public class OTAUpdater {
             tvTitle.setTextColor(Color.parseColor("#3B82F6"));
             tvVersion.setText("Versi Saat Ini: " + currentVersion + "\nVersi Terbaru: " + latestVersion);
             tvChangelog.setText(changelog);
-            
+
             btnCancel.setText("NANTI");
             btnAction.setText("UNDUH & INSTALL");
             btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#3B82F6")));
@@ -139,19 +143,18 @@ public class OTAUpdater {
             tvTitle.setTextColor(Color.parseColor("#34C759"));
             tvVersion.setText("Versi Saat Ini: " + currentVersion + " (Mutakhir)");
             scrollChangelog.setVisibility(View.GONE);
-            
+
             btnCancel.setText("TUTUP");
             btnAction.setText("PAKSA INSTAL");
-            // Warna merah gelap untuk indikasi "Tindakan Paksa"
-            btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#991B1B"))); 
-            
+            btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#991B1B")));
+
             if (downloadUrl == null) {
-                btnAction.setVisibility(View.GONE); // Sembunyikan jika error server
+                btnAction.setVisibility(View.GONE);
             }
         }
 
         btnCancel.setOnClickListener(v -> bottomDialog.dismiss());
-        
+
         if (downloadUrl != null) {
             btnAction.setOnClickListener(v -> {
                 btnAction.setEnabled(false);
@@ -170,7 +173,7 @@ public class OTAUpdater {
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setInstanceFollowRedirects(false); 
+                conn.setInstanceFollowRedirects(false);
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(15000);
                 conn.connect();
@@ -191,8 +194,8 @@ public class OTAUpdater {
                 File downloadDir = new File(activity.getExternalFilesDir(null), "Download");
                 if (!downloadDir.exists()) downloadDir.mkdirs();
                 File outputFile = new File(downloadDir, "indogo-update.apk");
-                
-                if (outputFile.exists()) outputFile.delete(); 
+
+                if (outputFile.exists()) outputFile.delete();
 
                 InputStream input = conn.getInputStream();
                 FileOutputStream output = new FileOutputStream(outputFile);
@@ -216,7 +219,9 @@ public class OTAUpdater {
                 output.flush(); output.close(); input.close();
 
                 handler.post(() -> {
-                    dialog.dismiss();
+                    if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
+                        dialog.dismiss();
+                    }
                     installApk(outputFile);
                 });
             } catch (Exception e) {
@@ -234,7 +239,7 @@ public class OTAUpdater {
                 return;
             }
         }
-        
+
         Intent intent = new Intent(Intent.ACTION_VIEW);
         Uri apkUri = FileProvider.getUriForFile(activity, "com.indogaro.net.provider", apkFile);
         intent.setDataAndType(apkUri, "application/vnd.android.package-archive");

@@ -24,11 +24,13 @@ public class TelemetryGraphView extends View {
         linePaint.setAntiAlias(true);
         linePaint.setStrokeJoin(Paint.Join.ROUND);
         linePaint.setStrokeCap(Paint.Cap.ROUND);
+        linePaint.setColor(Color.parseColor("#3B82F6")); // Default fallback color
         path = new Path();
     }
 
     public void setLineColor(String hexColor) {
         linePaint.setColor(Color.parseColor(hexColor));
+        invalidate();
     }
 
     public void addDataPoint(float value) {
@@ -47,18 +49,18 @@ public class TelemetryGraphView extends View {
         float width = getWidth();
         float height = getHeight();
         float max = 0;
-        
+
         // Cari nilai tertinggi untuk skala dinamis
         for (float v : data) if (v > max) max = v;
-        if (max == 0) max = 1; 
+        if (max == 0) max = 1;
 
         path.reset();
         float stepX = width / (maxDataPoints - 1);
-        
+
         for (int i = 0; i < data.size(); i++) {
             float x = i * stepX;
             // Sisakan 10% padding di atas grafik
-            float y = height - ((data.get(i) / max) * height * 0.9f); 
+            float y = height - ((data.get(i) / max) * height * 0.9f);
             if (i == 0) path.moveTo(x, y);
             else path.lineTo(x, y);
         }

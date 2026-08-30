@@ -8,5 +8,5 @@ buildscript {
         classpath 'com.android.tools.build:gradle:8.1.0'
     }
 }
-// 🔴 KUNCI ARSITEKTUR: Blok 'allprojects' telah diamputasi total dari sini 
+// 🔴 KUNCI ARSITEKTUR: Blok 'allprojects' telah diamputasi total dari sini
 // karena pengaturan repositori sudah diambil alih oleh settings.gradle

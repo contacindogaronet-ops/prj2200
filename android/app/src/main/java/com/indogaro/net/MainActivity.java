@@ -46,10 +46,10 @@ public class MainActivity extends AppCompatActivity {
             if (btn.getText().toString().toUpperCase().contains("CHECK FOR UPDATES")) {
                 ViewGroup parent = (ViewGroup) btn.getParent();
                 if (parent != null) {
-                    for(int i=0; i<parent.getChildCount(); i++) {
+                    for (int i = 0; i < parent.getChildCount(); i++) {
                         View child = parent.getChildAt(i);
-                        if(child instanceof Button && ((Button)child).getText().toString().contains("⚙️ CORE ENGINE SETTINGS")) {
-                            return true; 
+                        if (child instanceof Button && ((Button) child).getText().toString().contains("⚙️ CORE ENGINE SETTINGS")) {
+                            return true;
                         }
                     }
                     Button myBtn = new Button(this);
@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
                     myBtn.setTextColor(android.graphics.Color.WHITE);
                     myBtn.setLayoutParams(btn.getLayoutParams());
                     myBtn.setOnClickListener(v -> showIndogoSettings());
-                    
+
                     parent.addView(myBtn, parent.indexOfChild(btn) + 1);
                     return true;
                 }
@@ -142,26 +142,26 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(edtMtu);
 
         new AlertDialog.Builder(this)
-            .setTitle("Engine Settings")
-            .setView(scrollView)
-            .setPositiveButton("SIMPAN", (dialog, which) -> {
-                try {
-                    prefs.edit()
-                        .putBoolean("sniffing", chkSniffing.isChecked())
-                        .putBoolean("udp", chkUdp.isChecked())
-                        .putBoolean("ipv6", chkIpv6.isChecked())
-                        .putBoolean("fakedns", chkFakeDns.isChecked())
-                        .putBoolean("bypass_lan", chkBypassLan.isChecked())
-                        .putBoolean("kill_53", chkKill53.isChecked()) // Simpan Parameter Baru
-                        .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
-                        .putString("dns", edtDns.getText().toString().trim())
-                        .apply();
-                    Toast.makeText(this, "Tersimpan! Silakan Restart VPN.", Toast.LENGTH_LONG).show();
-                } catch (Exception e) {
-                    Toast.makeText(this, "Format MTU Salah!", Toast.LENGTH_SHORT).show();
-                }
-            })
-            .setNegativeButton("BATAL", null)
-            .show();
+                .setTitle("Engine Settings")
+                .setView(scrollView)
+                .setPositiveButton("SIMPAN", (dialog, which) -> {
+                    try {
+                        prefs.edit()
+                                .putBoolean("sniffing", chkSniffing.isChecked())
+                                .putBoolean("udp", chkUdp.isChecked())
+                                .putBoolean("ipv6", chkIpv6.isChecked())
+                                .putBoolean("fakedns", chkFakeDns.isChecked())
+                                .putBoolean("bypass_lan", chkBypassLan.isChecked())
+                                .putBoolean("kill_53", chkKill53.isChecked()) // Simpan Parameter Baru
+                                .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
+                                .putString("dns", edtDns.getText().toString().trim())
+                                .apply();
+                        Toast.makeText(this, "Tersimpan! Silakan Restart VPN.", Toast.LENGTH_LONG).show();
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Format MTU Salah!", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("BATAL", null)
+                .show();
     }
 }
