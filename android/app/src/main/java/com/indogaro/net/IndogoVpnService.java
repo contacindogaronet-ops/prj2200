@@ -50,9 +50,14 @@ public class IndogoVpnService extends VpnService {
         isRunning = true;
         notifManager = getSystemService(NotificationManager.class);
 
+        // 🔴 MEMBACA SELURUH PARAMETER UI CLONE V2RAYNG
         SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
+        boolean enableSniffing = prefs.getBoolean("sniffing", true);
+        boolean enableUdp = prefs.getBoolean("udp", true);
         boolean enableIPv6 = prefs.getBoolean("ipv6", true);
-        boolean enableFakeDns = prefs.getBoolean("fakedns", true);
+        boolean enableLocalDns = prefs.getBoolean("local_dns", true);
+        boolean enableFakeDns = prefs.getBoolean("fakedns", false);
+        boolean bypassLan = prefs.getBoolean("bypass_lan", false);
         int mtu = prefs.getInt("mtu", 1500);
         String dns = prefs.getString("dns", "1.1.1.1");
 
@@ -66,12 +71,51 @@ public class IndogoVpnService extends VpnService {
             builder.setSession("Indogo-" + cluster);
             builder.setMtu(mtu); 
             builder.addAddress("10.10.14.2", 24); 
-            builder.addRoute("0.0.0.0", 0); 
+            
+            // Bypass LAN Logic
+            if (bypassLan) {
+                // Menambahkan rute publik saja, mengecualikan LAN (192.168.x.x, 10.x.x.x)
+                builder.addRoute("1.0.0.0", 8);
+                builder.addRoute("2.0.0.0", 7);
+                builder.addRoute("4.0.0.0", 6);
+                builder.addRoute("8.0.0.0", 7);
+                builder.addRoute("11.0.0.0", 8);
+                builder.addRoute("12.0.0.0", 6);
+                builder.addRoute("16.0.0.0", 4);
+                builder.addRoute("32.0.0.0", 3);
+                builder.addRoute("64.0.0.0", 2);
+                builder.addRoute("128.0.0.0", 3);
+                builder.addRoute("160.0.0.0", 5);
+                builder.addRoute("168.0.0.0", 6);
+                builder.addRoute("172.0.0.0", 12);
+                builder.addRoute("172.32.0.0", 11);
+                builder.addRoute("172.64.0.0", 10);
+                builder.addRoute("172.128.0.0", 9);
+                builder.addRoute("173.0.0.0", 8);
+                builder.addRoute("174.0.0.0", 7);
+                builder.addRoute("176.0.0.0", 4);
+                builder.addRoute("192.0.0.0", 9);
+                builder.addRoute("192.128.0.0", 11);
+                builder.addRoute("192.160.0.0", 13);
+                builder.addRoute("192.169.0.0", 16);
+                builder.addRoute("192.170.0.0", 15);
+                builder.addRoute("192.172.0.0", 14);
+                builder.addRoute("192.176.0.0", 12);
+                builder.addRoute("192.192.0.0", 10);
+                builder.addRoute("193.0.0.0", 8);
+                builder.addRoute("194.0.0.0", 7);
+                builder.addRoute("196.0.0.0", 6);
+                builder.addRoute("200.0.0.0", 5);
+                builder.addRoute("208.0.0.0", 4);
+            } else {
+                builder.addRoute("0.0.0.0", 0); // Route All
+            }
             
             String[] dnsList = dns.split(",");
             for (String d : dnsList) {
                 builder.addDnsServer(d.trim());
             }
+            if (enableLocalDns) { builder.addDnsServer("127.0.0.1"); }
 
             if (enableIPv6) {
                 builder.addAddress("fc00::2", 128);
@@ -82,20 +126,18 @@ public class IndogoVpnService extends VpnService {
             vpnInterface = builder.establish();
 
             nativeFd = vpnInterface.getFd();
-            if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
+            if (nativeFd == -1) throw new Exception("Kernel menolak FD.");
 
-            // 🔴 KUNCI ARSITEKTUR FAKEDNS: Merakit YAML Hev-Tun
+            // 🔴 YAML CONFIG BUILDER
             StringBuilder yamlBuilder = new StringBuilder();
             yamlBuilder.append("tunnel:\n  mtu: ").append(mtu).append("\n  ipv4: true\n  ipv6: ").append(enableIPv6).append("\n");
-            yamlBuilder.append("socks5:\n  address: ").append(host).append("\n  port: ").append(port).append("\n  udp: 'udp'\n");
             
-            // Injeksi Modul FakeDNS ke dalam Hev-Tun
+            String udpMode = enableUdp ? "'udp'" : "'tcp'";
+            yamlBuilder.append("socks5:\n  address: ").append(host).append("\n  port: ").append(port).append("\n  udp: ").append(udpMode).append("\n");
+            
             if (enableFakeDns) {
-                yamlBuilder.append("fakedns:\n");
-                yamlBuilder.append("  ipv4_range: 198.18.0.0/15\n");
-                if (enableIPv6) {
-                    yamlBuilder.append("  ipv6_range: fc00::/18\n");
-                }
+                yamlBuilder.append("fakedns:\n  ipv4_range: 198.18.0.0/15\n");
+                if (enableIPv6) { yamlBuilder.append("  ipv6_range: fc00::/18\n"); }
             }
 
             File configFile = new File(getFilesDir(), "tun2socks.yml");
@@ -107,7 +149,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Tunnel Active. FakeDNS: " + enableFakeDns);
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] Settings Applied | Sniffing: " + enableSniffing + " | FakeDNS: " + enableFakeDns);
 
             new Thread(() -> {
                 try {

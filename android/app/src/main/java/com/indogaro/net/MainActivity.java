@@ -719,10 +719,10 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: UI Pengaturan Dinamis (Zero-XML Layout)
+    // 🔴 KUNCI ARSITEKTUR: UI Pengaturan Dinamis (Kloning v2rayNG)
     @Override
     public boolean onCreateOptionsMenu(android.view.Menu menu) {
-        menu.add(0, 999, 0, "⚙️ Pengaturan").setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS);
+        menu.add(0, 999, 0, "⚙️ Settings").setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -737,54 +737,87 @@ public class MainActivity extends Activity {
 
     private void showIndogoSettings() {
         android.content.SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(this);
         android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 40);
+        scrollView.addView(layout);
+
+        // Kategori: CORE SETTINGS
+        android.widget.TextView txtCore = new android.widget.TextView(this);
+        txtCore.setText("Core Settings");
+        txtCore.setTextColor(android.graphics.Color.parseColor("#FF9800"));
+        txtCore.setPadding(0, 0, 0, 10);
+        layout.addView(txtCore);
+
+        android.widget.CheckBox chkSniffing = new android.widget.CheckBox(this);
+        chkSniffing.setText("Enable Sniffing (Try sniff domain from packet)");
+        chkSniffing.setChecked(prefs.getBoolean("sniffing", true));
+        layout.addView(chkSniffing);
+
+        android.widget.CheckBox chkUdp = new android.widget.CheckBox(this);
+        chkUdp.setText("SOCKS5 UDP");
+        chkUdp.setChecked(prefs.getBoolean("udp", true));
+        layout.addView(chkUdp);
+
+        // Kategori: VPN SETTINGS
+        android.widget.TextView txtVpn = new android.widget.TextView(this);
+        txtVpn.setText("VPN Settings");
+        txtVpn.setTextColor(android.graphics.Color.parseColor("#FF9800"));
+        txtVpn.setPadding(0, 40, 0, 10);
+        layout.addView(txtVpn);
 
         android.widget.CheckBox chkIpv6 = new android.widget.CheckBox(this);
-        chkIpv6.setText("Enable IPv6 (Dual Stack)");
+        chkIpv6.setText("Enable IPv6 (Add IPv6 address and routes)");
         chkIpv6.setChecked(prefs.getBoolean("ipv6", true));
         layout.addView(chkIpv6);
 
-        // 🔴 KUNCI DOMAIN: FakeDNS Local DNS Resolver
+        android.widget.CheckBox chkLocalDns = new android.widget.CheckBox(this);
+        chkLocalDns.setText("Enable local DNS (Processed by core's DNS)");
+        chkLocalDns.setChecked(prefs.getBoolean("local_dns", true));
+        layout.addView(chkLocalDns);
+
         android.widget.CheckBox chkFakeDns = new android.widget.CheckBox(this);
-        chkFakeDns.setText("Enable FakeDNS (Kirim Domain ATYP 0x03)");
-        chkFakeDns.setChecked(prefs.getBoolean("fakedns", true));
+        chkFakeDns.setText("Enable fake DNS (Returns fake IP addresses)");
+        chkFakeDns.setChecked(prefs.getBoolean("fakedns", false));
         layout.addView(chkFakeDns);
 
-        android.widget.CheckBox chkSniffing = new android.widget.CheckBox(this);
-        chkSniffing.setText("Enable Sniffing (Layer 7 TLS)");
-        chkSniffing.setChecked(prefs.getBoolean("sniffing", false));
-        layout.addView(chkSniffing);
-
-        android.widget.EditText edtMtu = new android.widget.EditText(this);
-        edtMtu.setHint("VPN MTU (Default 1500)");
-        edtMtu.setText(String.valueOf(prefs.getInt("mtu", 1500)));
-        layout.addView(edtMtu);
+        android.widget.CheckBox chkBypassLan = new android.widget.CheckBox(this);
+        chkBypassLan.setText("Bypass LAN (Exclude Local IPs)");
+        chkBypassLan.setChecked(prefs.getBoolean("bypass_lan", false));
+        layout.addView(chkBypassLan);
 
         android.widget.EditText edtDns = new android.widget.EditText(this);
-        edtDns.setHint("Custom DNS (contoh: 1.1.1.1)");
+        edtDns.setHint("VPN DNS (only IPv4/v6)");
         edtDns.setText(prefs.getString("dns", "1.1.1.1"));
         layout.addView(edtDns);
 
+        android.widget.EditText edtMtu = new android.widget.EditText(this);
+        edtMtu.setHint("VPN MTU (default 1500)");
+        edtMtu.setText(String.valueOf(prefs.getInt("mtu", 1500)));
+        layout.addView(edtMtu);
+
         new android.app.AlertDialog.Builder(this)
-            .setTitle("Pengaturan Indogo")
-            .setView(layout)
-            .setPositiveButton("SIMPAN", (dialog, which) -> {
+            .setTitle("Settings")
+            .setView(scrollView)
+            .setPositiveButton("SAVE", (dialog, which) -> {
                 try {
                     prefs.edit()
-                        .putBoolean("ipv6", chkIpv6.isChecked())
-                        .putBoolean("fakedns", chkFakeDns.isChecked())
                         .putBoolean("sniffing", chkSniffing.isChecked())
+                        .putBoolean("udp", chkUdp.isChecked())
+                        .putBoolean("ipv6", chkIpv6.isChecked())
+                        .putBoolean("local_dns", chkLocalDns.isChecked())
+                        .putBoolean("fakedns", chkFakeDns.isChecked())
+                        .putBoolean("bypass_lan", chkBypassLan.isChecked())
                         .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
                         .putString("dns", edtDns.getText().toString().trim())
                         .apply();
-                    android.widget.Toast.makeText(this, "Disimpan! Restart VPN.", android.widget.Toast.LENGTH_LONG).show();
+                    android.widget.Toast.makeText(this, "Settings Saved! Restart VPN.", android.widget.Toast.LENGTH_LONG).show();
                 } catch (Exception e) {
-                    android.widget.Toast.makeText(this, "Gagal: Format tidak valid", android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(this, "Error: Invalid Format", android.widget.Toast.LENGTH_SHORT).show();
                 }
             })
-            .setNegativeButton("BATAL", null)
+            .setNegativeButton("CANCEL", null)
             .show();
     }
 }
