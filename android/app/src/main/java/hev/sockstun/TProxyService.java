@@ -5,8 +5,8 @@ public class TProxyService {
         System.loadLibrary("hev-socks5-tunnel"); 
     }
     
-    // 🔴 KUNCI ARSITEKTUR FINAL: Nama Class WAJIB TProxyService
-    public native static void TunnelMain(String configPath, int tunFd);
-    public native static void TunnelMain(int tunFd, String configPath);
-    public native static void TunnelQuit();
+    // 🔴 KUNCI ARSITEKTUR FINAL: Nama Fungsi WAJIB TProxyStartService & TProxyStopService
+    public native static void TProxyStartService(String configPath, int tunFd);
+    public native static void TProxyStopService();
+    public native static long[] TProxyGetStats();
 }

@@ -70,18 +70,12 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notif);
 
             broadcastLog(cluster, "🛡️ [VPN GATEWAY] TUN FD (" + nativeFd + ") diamankan.");
-            broadcastLog(cluster, "🚀 [TUN2SOCKS] Mengeksekusi C++ Engine (Target: hev.sockstun.TProxyService)...");
+            broadcastLog(cluster, "🚀 [TUN2SOCKS] Mengeksekusi C++ Engine (TProxyStartService)...");
 
             new Thread(() -> {
                 try {
-                    // 🔴 EKSEKUSI ABSOLUT KE KELAS YANG TEPAT
-                    hev.sockstun.TProxyService.TunnelMain(configFile.getAbsolutePath(), nativeFd);
-                } catch (UnsatisfiedLinkError e1) {
-                    try {
-                        hev.sockstun.TProxyService.TunnelMain(nativeFd, configFile.getAbsolutePath());
-                    } catch (Throwable e2) {
-                        broadcastLog(cluster, "🛑 JNI SIGNATURE ERROR: " + e2.getMessage());
-                    }
+                    // 🔴 EKSEKUSI ABSOLUT DENGAN NAMA FUNGSI YANG BENAR
+                    hev.sockstun.TProxyService.TProxyStartService(configFile.getAbsolutePath(), nativeFd);
                 } catch (Throwable t) {
                     broadcastLog(cluster, "🛑 CRASH INTERCEPTED: " + t.getMessage());
                 }
@@ -95,7 +89,7 @@ public class IndogoVpnService extends VpnService {
 
     private void stopVpnTunnel() {
         new Thread(() -> {
-            try { hev.sockstun.TProxyService.TunnelQuit(); } catch (Throwable t) {}
+            try { hev.sockstun.TProxyService.TProxyStopService(); } catch (Throwable t) {}
         }).start();
 
         try {
