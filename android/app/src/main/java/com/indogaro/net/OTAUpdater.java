@@ -203,36 +203,11 @@ public class OTAUpdater {
             return;
         }
 
-        try {
-            // 🔴 KUNCI ARSITEKTUR: PackageInstaller API untuk Bypass Scanner Antivirus OEM
-            android.content.pm.PackageInstaller packageInstaller = activity.getPackageManager().getPackageInstaller();
-            android.content.pm.PackageInstaller.SessionParams params = new android.content.pm.PackageInstaller.SessionParams(
-                android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL);
-            int sessionId = packageInstaller.createSession(params);
-            android.content.pm.PackageInstaller.Session session = packageInstaller.openSession(sessionId);
-
-            java.io.OutputStream out = session.openWrite("IndogoOTA", 0, -1);
-            java.io.FileInputStream in = new java.io.FileInputStream(apkFile);
-            byte[] buffer = new byte[65536];
-            int c;
-            while ((c = in.read(buffer)) != -1) out.write(buffer, 0, c);
-            session.fsync(out); in.close(); out.close();
-
-            Intent intent = new Intent("com.indogaro.net.ACTION_INSTALL_COMMIT");
-            android.app.PendingIntent pendingIntent;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                pendingIntent = android.app.PendingIntent.getBroadcast(activity, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_MUTABLE);
-            } else {
-                pendingIntent = android.app.PendingIntent.getBroadcast(activity, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT);
-            }
-            session.commit(pendingIntent.getIntentSender());
-        } catch (Exception e) {
-            // Fallback Method
-            Intent intent = new Intent(Intent.ACTION_VIEW);
-            Uri apkUri = FileProvider.getUriForFile(activity, "com.indogaro.net.provider", apkFile);
-            intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-            activity.startActivity(intent);
-        }
+        // 🔴 KEMBALI KE STANDAR: Kurangi kecurigaan mesin heuristik Play Protect
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        Uri apkUri = FileProvider.getUriForFile(activity, "com.indogaro.net.provider", apkFile);
+        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+        activity.startActivity(intent);
     }
 }
