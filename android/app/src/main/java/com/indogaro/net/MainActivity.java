@@ -718,4 +718,38 @@ public class MainActivity extends Activity {
         btnClose.setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
+    // 🔴 KUNCI ARSITEKTUR: Switch Cluster Receiver
+    private android.content.BroadcastReceiver switchReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(android.content.Context context, android.content.Intent intent) {
+            String[] clusters = prefs.getString("CLUSTERS", "DEFAULT").split(",");
+            if (clusters.length <= 1) {
+                printToTerminal("SYSTEM", "⚠️ Hanya ada 1 klaster. Tidak bisa switch.");
+                return;
+            }
+            stopClusterExecution(activeCluster);
+            int nextIdx = 0;
+            for (int i = 0; i < clusters.length; i++) {
+                if (clusters[i].equals(activeCluster)) {
+                    nextIdx = (i + 1) % clusters.length;
+                    break;
+                }
+            }
+            String nextCluster = clusters[nextIdx];
+            printToTerminal("SYSTEM", "🔄 Auto-Switching ke klaster: " + nextCluster);
+            startClusterExecution(nextCluster);
+        }
+    };
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(switchReceiver, new android.content.IntentFilter("SWITCH_CLUSTER_ACTION"), android.content.Context.RECEIVER_NOT_EXPORTED);
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try { unregisterReceiver(switchReceiver); } catch(Exception e){}
+    }
 }
