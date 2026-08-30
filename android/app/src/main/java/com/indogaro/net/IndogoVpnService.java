@@ -5,13 +5,13 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.drawable.Icon;
 import android.net.TrafficStats;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
-import android.graphics.drawable.Icon;
 import java.io.File;
 import java.io.FileOutputStream;
 
@@ -39,10 +39,6 @@ public class IndogoVpnService extends VpnService {
                 startVpnTunnel(currentCluster, host, port, proto);
             } else if ("STOP_VPN".equals(action)) {
                 stopVpnTunnel();
-            } else if ("SWITCH_CLUSTER".equals(action)) {
-                broadcastLog("SYSTEM", "🔄 Permintaan Switch Cluster dari Notifikasi dikirim...");
-                Intent switchIntent = new Intent("SWITCH_CLUSTER_ACTION");
-                sendBroadcast(switchIntent);
             }
         }
         return START_STICKY;
@@ -72,7 +68,6 @@ public class IndogoVpnService extends VpnService {
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak memberikan FD.");
 
-            // 🔴 PERINGATAN ARSITEKTUR: Gunakan 'udp: tcp' agar DNS request dari OS dilewatkan via TCP jika Golang tidak support UDP
             File configFile = new File(getFilesDir(), "tun2socks.yml");
             String yaml = "tunnel:\n  mtu: 1500\n  ipv4: true\n  ipv6: false\nsocks5:\n  address: " + host + "\n  port: " + port + "\n  udp: 'udp'\n";
             FileOutputStream fos = new FileOutputStream(configFile);
@@ -83,7 +78,7 @@ public class IndogoVpnService extends VpnService {
             startForeground(2, notifBuilder.build());
             startSpeedometer();
 
-            broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS Tunnel Active. Engine: hev.sockstun.TProxyService");
+            broadcastLog(cluster, "🛡️ [VPN GATEWAY] OS Tunnel Active. Target: 127.0.0.1:2007");
 
             new Thread(() -> {
                 try {
@@ -102,24 +97,28 @@ public class IndogoVpnService extends VpnService {
     private void setupNotification() {
         int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0);
         
+        // Tombol Disconnect (Tetap menggunakan Service)
         Intent stopIntent = new Intent(this, IndogoVpnService.class);
         stopIntent.setAction("STOP_VPN");
         PendingIntent pStop = PendingIntent.getService(this, 0, stopIntent, flags);
 
-        Intent switchIntent = new Intent(this, IndogoVpnService.class);
-        switchIntent.setAction("SWITCH_CLUSTER");
-        PendingIntent pSwitch = PendingIntent.getService(this, 1, switchIntent, flags);
+        // 🔴 KOREKSI ARSITEKTUR: Tombol Switch membuka MainActivity dengan aman
+        Intent switchIntent = new Intent(this, MainActivity.class);
+        switchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pSwitch = PendingIntent.getActivity(this, 1, switchIntent, flags);
 
-        Notification.Action actionStop = new Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "DISCONNECT", pStop).build();
-        Notification.Action actionSwitch = new Notification.Action.Builder(Icon.createWithResource(this, android.R.drawable.ic_menu_directions), "SWITCH", pSwitch).build();
+        Notification.Action actionSwitch = new Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_menu_directions), "SWITCH CLUSTER", pSwitch).build();
+        Notification.Action actionStop = new Notification.Action.Builder(
+            Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel), "DISCONNECT", pStop).build();
 
         notifBuilder = new Notification.Builder(this, "VPN_GATEWAY")
-                .setContentTitle("Indogo VPN: " + currentCluster)
-                .setContentText("Koneksi aman. Menghitung kecepatan...")
+                .setContentTitle("Indogo ➔ " + currentCluster)
+                .setContentText("Menghitung metrik jaringan...")
                 .setSmallIcon(android.R.drawable.ic_secure)
                 .setOnlyAlertOnce(true)
-                .addAction(actionStop)
-                .addAction(actionSwitch);
+                .addAction(actionSwitch)
+                .addAction(actionStop);
     }
 
     private void startSpeedometer() {
@@ -136,10 +135,9 @@ public class IndogoVpnService extends VpnService {
                 long rxDiff = currentRx - lastRx;
                 long txDiff = currentTx - lastTx;
                 
-                lastRx = currentRx;
-                lastTx = currentTx;
+                lastRx = currentRx; lastTx = currentTx;
                 
-                String speedText = "↓ " + formatSpeed(rxDiff) + "  |  ↑ " + formatSpeed(txDiff);
+                String speedText = "▼ " + formatSpeed(rxDiff) + "   |   ▲ " + formatSpeed(txDiff);
                 notifBuilder.setContentText(speedText);
                 notifManager.notify(2, notifBuilder.build());
                 
