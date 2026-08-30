@@ -38,15 +38,12 @@ public class OTAUpdater {
     private static final String GITHUB_API = "https://api.github.com/repos/contacindogaronet-ops/prj2200/releases/latest";
     private static final long AUTO_CHECK_COOLDOWN_MS = 4 * 60 * 60 * 1000;
 
-    public OTAUpdater(Activity activity) {
-        this.activity = activity;
-    }
+    public OTAUpdater(Activity activity) { this.activity = activity; }
 
     public void check(boolean isManual) {
         SharedPreferences prefs = activity.getSharedPreferences("DaemonSettings", Context.MODE_PRIVATE);
         long lastCheck = prefs.getLong("LAST_OTA_CHECK", 0);
         long now = System.currentTimeMillis();
-
         if (!isManual && (now - lastCheck < AUTO_CHECK_COOLDOWN_MS)) return;
 
         new Thread(() -> {
@@ -57,7 +54,6 @@ public class OTAUpdater {
                 HttpURLConnection conn = (HttpURLConnection) new URL(GITHUB_API).openConnection();
                 conn.setRequestProperty("User-Agent", "Indogo-OTA-Engine");
                 conn.setConnectTimeout(10000);
-
                 if (conn.getResponseCode() != 200) throw new Exception("GitHub API menolak koneksi.");
 
                 BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -71,19 +67,15 @@ public class OTAUpdater {
                 String changelog = json.getString("body");
                 String publishDate = json.getString("published_at").split("T")[0];
                 JSONArray assets = json.getJSONArray("assets");
-
-                if (assets.length() == 0) throw new Exception("Tidak ada file APK pada release ini.");
+                if (assets.length() == 0) throw new Exception("Tidak ada file APK.");
                 String downloadUrl = assets.getJSONObject(0).getString("browser_download_url");
 
                 new Handler(Looper.getMainLooper()).post(() -> {
-                    // 🔴 PENCEGAHAN CRASH: Window BadTokenException (Lifecycle Check)
                     if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
-
                     boolean isUpdateAvailable = !currentVersion.equals(latestVersion);
                     if (isUpdateAvailable) {
                         showBottomSheet(true, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
                     } else if (isManual) {
-                        // 🔴 KUNCI ARSITEKTUR: Teruskan downloadUrl ke panel meskipun sistem optimal
                         showBottomSheet(false, currentVersion, latestVersion, changelog, publishDate, downloadUrl);
                     }
                 });
@@ -103,7 +95,6 @@ public class OTAUpdater {
         Dialog bottomDialog = new Dialog(activity, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
         View view = LayoutInflater.from(activity).inflate(R.layout.dialog_update_bottom, null);
         bottomDialog.setContentView(view);
-
         Window window = bottomDialog.getWindow();
         if (window != null) {
             window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -120,51 +111,37 @@ public class OTAUpdater {
         LinearLayout layoutProgress = view.findViewById(R.id.layoutProgress);
         ProgressBar progressBar = view.findViewById(R.id.progressBar);
         TextView tvProgressText = view.findViewById(R.id.tvProgressText);
-
         Button btnCancel = view.findViewById(R.id.btnUpdateCancel);
         Button btnAction = view.findViewById(R.id.btnUpdateAction);
 
         tvDate.setText("Tanggal Rilis: " + date);
 
         if (isUpdateAvailable) {
-            tvIcon.setText("🚀");
-            tvTitle.setText("PEMBARUAN TERSEDIA");
+            tvIcon.setText("🚀"); tvTitle.setText("PEMBARUAN TERSEDIA");
             tvTitle.setTextColor(Color.parseColor("#3B82F6"));
             tvVersion.setText("Versi Saat Ini: " + currentVersion + "\nVersi Terbaru: " + latestVersion);
             tvChangelog.setText(changelog);
-
-            btnCancel.setText("NANTI");
-            btnAction.setText("UNDUH & INSTALL");
+            btnCancel.setText("NANTI"); btnAction.setText("UNDUH & INSTALL");
             btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#3B82F6")));
         } else {
-            // 🔴 KUNCI ARSITEKTUR: Override State (Paksa Instal)
-            tvIcon.setText("✅");
-            tvTitle.setText("SISTEM OPTIMAL");
+            tvIcon.setText("✅"); tvTitle.setText("SISTEM OPTIMAL");
             tvTitle.setTextColor(Color.parseColor("#34C759"));
             tvVersion.setText("Versi Saat Ini: " + currentVersion + " (Mutakhir)");
             scrollChangelog.setVisibility(View.GONE);
-
-            btnCancel.setText("TUTUP");
-            btnAction.setText("PAKSA INSTAL");
+            btnCancel.setText("TUTUP"); btnAction.setText("PAKSA INSTAL");
             btnAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#991B1B")));
-
-            if (downloadUrl == null) {
-                btnAction.setVisibility(View.GONE);
-            }
+            if (downloadUrl == null) btnAction.setVisibility(View.GONE);
         }
 
         btnCancel.setOnClickListener(v -> bottomDialog.dismiss());
 
         if (downloadUrl != null) {
             btnAction.setOnClickListener(v -> {
-                btnAction.setEnabled(false);
-                btnCancel.setEnabled(false);
-                btnAction.setText("MEMPROSES...");
-                layoutProgress.setVisibility(View.VISIBLE);
+                btnAction.setEnabled(false); btnCancel.setEnabled(false);
+                btnAction.setText("MEMPROSES..."); layoutProgress.setVisibility(View.VISIBLE);
                 downloadAndInstall(downloadUrl, progressBar, tvProgressText, bottomDialog);
             });
         }
-
         bottomDialog.show();
     }
 
@@ -173,41 +150,32 @@ public class OTAUpdater {
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setInstanceFollowRedirects(false);
-                conn.setConnectTimeout(15000);
-                conn.setReadTimeout(15000);
-                conn.connect();
+                conn.setInstanceFollowRedirects(false); conn.setConnectTimeout(15000);
+                conn.setReadTimeout(15000); conn.connect();
 
                 int status = conn.getResponseCode();
                 if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == HttpURLConnection.HTTP_SEE_OTHER) {
                     String redirectUrl = conn.getHeaderField("Location");
-                    url = new URL(redirectUrl);
-                    conn = (HttpURLConnection) url.openConnection();
-                    conn.setConnectTimeout(15000);
-                    conn.setReadTimeout(15000);
-                    conn.connect();
+                    url = new URL(redirectUrl); conn = (HttpURLConnection) url.openConnection();
+                    conn.setConnectTimeout(15000); conn.setReadTimeout(15000); conn.connect();
                 }
 
-                if (conn.getResponseCode() != 200) throw new Exception("Gagal terhubung ke server unduhan.");
+                if (conn.getResponseCode() != 200) throw new Exception("Gagal terhubung.");
                 int fileLength = conn.getContentLength();
 
                 File downloadDir = new File(activity.getExternalFilesDir(null), "Download");
                 if (!downloadDir.exists()) downloadDir.mkdirs();
                 File outputFile = new File(downloadDir, "indogo-update.apk");
-
                 if (outputFile.exists()) outputFile.delete();
 
                 InputStream input = conn.getInputStream();
                 FileOutputStream output = new FileOutputStream(outputFile);
-
-                byte[] data = new byte[4096];
-                long total = 0;
-                int count;
+                byte[] data = new byte[65536];
+                long total = 0; int count;
                 Handler handler = new Handler(Looper.getMainLooper());
 
                 while ((count = input.read(data)) != -1) {
-                    total += count;
-                    output.write(data, 0, count);
+                    total += count; output.write(data, 0, count);
                     if (fileLength > 0) {
                         int progress = (int) (total * 100 / fileLength);
                         handler.post(() -> {
@@ -219,9 +187,7 @@ public class OTAUpdater {
                 output.flush(); output.close(); input.close();
 
                 handler.post(() -> {
-                    if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) {
-                        dialog.dismiss();
-                    }
+                    if (activity != null && !activity.isFinishing() && !activity.isDestroyed()) dialog.dismiss();
                     installApk(outputFile);
                 });
             } catch (Exception e) {
@@ -231,20 +197,42 @@ public class OTAUpdater {
     }
 
     private void installApk(File apkFile) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            if (!activity.getPackageManager().canRequestPackageInstalls()) {
-                Intent permIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
-                permIntent.setData(Uri.parse("package:" + activity.getPackageName()));
-                activity.startActivity(permIntent);
-                return;
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !activity.getPackageManager().canRequestPackageInstalls()) {
+            Intent permIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.getPackageName()));
+            activity.startActivity(permIntent);
+            return;
         }
 
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        Uri apkUri = FileProvider.getUriForFile(activity, "com.indogaro.net.provider", apkFile);
-        intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        activity.startActivity(intent);
+        try {
+            // 🔴 KUNCI ARSITEKTUR: PackageInstaller API untuk Bypass Scanner Antivirus OEM
+            android.content.pm.PackageInstaller packageInstaller = activity.getPackageManager().getPackageInstaller();
+            android.content.pm.PackageInstaller.SessionParams params = new android.content.pm.PackageInstaller.SessionParams(
+                android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+            int sessionId = packageInstaller.createSession(params);
+            android.content.pm.PackageInstaller.Session session = packageInstaller.openSession(sessionId);
+
+            java.io.OutputStream out = session.openWrite("IndogoOTA", 0, -1);
+            java.io.FileInputStream in = new java.io.FileInputStream(apkFile);
+            byte[] buffer = new byte[65536];
+            int c;
+            while ((c = in.read(buffer)) != -1) out.write(buffer, 0, c);
+            session.fsync(out); in.close(); out.close();
+
+            Intent intent = new Intent("com.indogaro.net.ACTION_INSTALL_COMMIT");
+            android.app.PendingIntent pendingIntent;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                pendingIntent = android.app.PendingIntent.getBroadcast(activity, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_MUTABLE);
+            } else {
+                pendingIntent = android.app.PendingIntent.getBroadcast(activity, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+            }
+            session.commit(pendingIntent.getIntentSender());
+        } catch (Exception e) {
+            // Fallback Method
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            Uri apkUri = FileProvider.getUriForFile(activity, "com.indogaro.net.provider", apkFile);
+            intent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            activity.startActivity(intent);
+        }
     }
 }

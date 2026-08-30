@@ -3,9 +3,7 @@ package com.indogaro.net;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -18,58 +16,47 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    private boolean isNativeConfigHooked = false;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // Biarkan WebView/React Native Anda memuat antarmuka default di sini
-    }
+        
+        // 🔴 ARSITEKTUR NATIVE: Mencegah layar Blank
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER);
+        root.setBackgroundColor(android.graphics.Color.parseColor("#0F172A"));
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        final ViewGroup rootView = (ViewGroup) findViewById(android.R.id.content);
-        rootView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                if (!isNativeConfigHooked) {
-                    isNativeConfigHooked = injectNativeConfigButton(rootView);
-                }
-            }
-        });
-    }
+        TextView title = new TextView(this);
+        title.setText("INDOGO ENGINE");
+        title.setTextColor(android.graphics.Color.parseColor("#38BDF8"));
+        title.setTextSize(24f);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, 60);
+        root.addView(title);
 
-    private boolean injectNativeConfigButton(View view) {
-        if (view instanceof Button) {
-            Button btn = (Button) view;
-            if (btn.getText().toString().toUpperCase().contains("CHECK FOR UPDATES")) {
-                ViewGroup parent = (ViewGroup) btn.getParent();
-                if (parent != null) {
-                    for (int i = 0; i < parent.getChildCount(); i++) {
-                        View child = parent.getChildAt(i);
-                        if (child instanceof Button && ((Button) child).getText().toString().contains("⚙️ CORE ENGINE SETTINGS")) {
-                            return true;
-                        }
-                    }
-                    Button myBtn = new Button(this);
-                    myBtn.setText("⚙️ CORE ENGINE SETTINGS");
-                    myBtn.setBackgroundColor(android.graphics.Color.parseColor("#37474F"));
-                    myBtn.setTextColor(android.graphics.Color.WHITE);
-                    myBtn.setLayoutParams(btn.getLayoutParams());
-                    myBtn.setOnClickListener(v -> showIndogoSettings());
+        Button btnConfig = new Button(this);
+        btnConfig.setText("⚙️ CORE ENGINE SETTINGS");
+        btnConfig.setBackgroundColor(android.graphics.Color.parseColor("#1E293B"));
+        btnConfig.setTextColor(android.graphics.Color.WHITE);
+        btnConfig.setOnClickListener(v -> showIndogoSettings());
 
-                    parent.addView(myBtn, parent.indexOfChild(btn) + 1);
-                    return true;
-                }
-            }
-        } else if (view instanceof ViewGroup) {
-            ViewGroup vg = (ViewGroup) view;
-            for (int i = 0; i < vg.getChildCount(); i++) {
-                if (injectNativeConfigButton(vg.getChildAt(i))) return true;
-            }
-        }
-        return false;
+        Button btnUpdate = new Button(this);
+        btnUpdate.setText("🔄 CHECK FOR UPDATES");
+        btnUpdate.setBackgroundColor(android.graphics.Color.parseColor("#0369A1"));
+        btnUpdate.setTextColor(android.graphics.Color.WHITE);
+        btnUpdate.setOnClickListener(v -> new OTAUpdater(this).check(true));
+
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        params.setMargins(0, 20, 0, 0);
+        btnUpdate.setLayoutParams(params);
+        btnConfig.setLayoutParams(params);
+
+        root.addView(btnConfig);
+        root.addView(btnUpdate);
+
+        setContentView(root); // Render UI ke layar
     }
 
     private void showIndogoSettings() {
@@ -80,7 +67,6 @@ public class MainActivity extends AppCompatActivity {
         layout.setPadding(50, 40, 50, 40);
         scrollView.addView(layout);
 
-        // Kategori: CORE
         TextView txtCore = new TextView(this);
         txtCore.setText("Core Settings");
         txtCore.setTextColor(android.graphics.Color.parseColor("#FF9800"));
@@ -97,7 +83,6 @@ public class MainActivity extends AppCompatActivity {
         chkUdp.setChecked(prefs.getBoolean("udp", true));
         layout.addView(chkUdp);
 
-        // Kategori: VPN
         TextView txtVpn = new TextView(this);
         txtVpn.setText("VPN Settings");
         txtVpn.setTextColor(android.graphics.Color.parseColor("#FF9800"));
@@ -119,15 +104,14 @@ public class MainActivity extends AppCompatActivity {
         chkBypassLan.setChecked(prefs.getBoolean("bypass_lan", false));
         layout.addView(chkBypassLan);
 
-        // 🔴 KATEGORI BARU: ADVANCED ENGINE
         TextView txtAdv = new TextView(this);
         txtAdv.setText("Advanced Engine (Bahaya)");
-        txtAdv.setTextColor(android.graphics.Color.parseColor("#E53935")); // Merah Peringatan
+        txtAdv.setTextColor(android.graphics.Color.parseColor("#E53935"));
         txtAdv.setPadding(0, 40, 0, 10);
         layout.addView(txtAdv);
 
         CheckBox chkKill53 = new CheckBox(this);
-        chkKill53.setText("KILL Port 53 (Bypass DNS dari VPN / Anti-Spam Golang)");
+        chkKill53.setText("KILL Port 53 (Bypass DNS dari VPN)");
         chkKill53.setChecked(prefs.getBoolean("kill_53", false));
         layout.addView(chkKill53);
 
@@ -152,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
                                 .putBoolean("ipv6", chkIpv6.isChecked())
                                 .putBoolean("fakedns", chkFakeDns.isChecked())
                                 .putBoolean("bypass_lan", chkBypassLan.isChecked())
-                                .putBoolean("kill_53", chkKill53.isChecked()) // Simpan Parameter Baru
+                                .putBoolean("kill_53", chkKill53.isChecked())
                                 .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
                                 .putString("dns", edtDns.getText().toString().trim())
                                 .apply();
