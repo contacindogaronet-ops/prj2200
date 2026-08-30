@@ -719,20 +719,30 @@ public class MainActivity extends Activity {
         dialog.show();
     }
 
-    // 🔴 KUNCI ARSITEKTUR: UI Pengaturan Dinamis (Kloning v2rayNG)
-    @Override
-    public boolean onCreateOptionsMenu(android.view.Menu menu) {
-        menu.add(0, 999, 0, "⚙️ Settings").setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_ALWAYS);
-        return super.onCreateOptionsMenu(menu);
-    }
+    // 🔴 KUNCI ARSITEKTUR: Injeksi Floating Button (Bypass XML Layout)
+    private boolean isSettingsBtnAdded = false;
 
     @Override
-    public boolean onOptionsItemSelected(android.view.MenuItem item) {
-        if (item.getItemId() == 999) {
-            showIndogoSettings();
-            return true;
+    protected void onStart() {
+        super.onStart();
+        if (!isSettingsBtnAdded) {
+            android.widget.FrameLayout.LayoutParams params = new android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            params.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
+            params.setMargins(0, 150, 40, 0);
+
+            android.widget.Button btn = new android.widget.Button(this);
+            btn.setText("⚙️ SETTINGS");
+            btn.setBackgroundColor(android.graphics.Color.parseColor("#D84315")); // Deep Orange
+            btn.setTextColor(android.graphics.Color.WHITE);
+            btn.setElevation(20f);
+            btn.setOnClickListener(v -> showIndogoSettings());
+
+            addContentView(btn, params);
+            isSettingsBtnAdded = true;
         }
-        return super.onOptionsItemSelected(item);
     }
 
     private void showIndogoSettings() {
@@ -743,7 +753,6 @@ public class MainActivity extends Activity {
         layout.setPadding(50, 40, 50, 40);
         scrollView.addView(layout);
 
-        // Kategori: CORE SETTINGS
         android.widget.TextView txtCore = new android.widget.TextView(this);
         txtCore.setText("Core Settings");
         txtCore.setTextColor(android.graphics.Color.parseColor("#FF9800"));
@@ -751,7 +760,7 @@ public class MainActivity extends Activity {
         layout.addView(txtCore);
 
         android.widget.CheckBox chkSniffing = new android.widget.CheckBox(this);
-        chkSniffing.setText("Enable Sniffing (Try sniff domain from packet)");
+        chkSniffing.setText("Enable Sniffing (Layer 7 TLS)");
         chkSniffing.setChecked(prefs.getBoolean("sniffing", true));
         layout.addView(chkSniffing);
 
@@ -760,7 +769,6 @@ public class MainActivity extends Activity {
         chkUdp.setChecked(prefs.getBoolean("udp", true));
         layout.addView(chkUdp);
 
-        // Kategori: VPN SETTINGS
         android.widget.TextView txtVpn = new android.widget.TextView(this);
         txtVpn.setText("VPN Settings");
         txtVpn.setTextColor(android.graphics.Color.parseColor("#FF9800"));
@@ -768,22 +776,22 @@ public class MainActivity extends Activity {
         layout.addView(txtVpn);
 
         android.widget.CheckBox chkIpv6 = new android.widget.CheckBox(this);
-        chkIpv6.setText("Enable IPv6 (Add IPv6 address and routes)");
+        chkIpv6.setText("Enable IPv6");
         chkIpv6.setChecked(prefs.getBoolean("ipv6", true));
         layout.addView(chkIpv6);
 
         android.widget.CheckBox chkLocalDns = new android.widget.CheckBox(this);
-        chkLocalDns.setText("Enable local DNS (Processed by core's DNS)");
+        chkLocalDns.setText("Enable local DNS (127.0.0.1)");
         chkLocalDns.setChecked(prefs.getBoolean("local_dns", true));
         layout.addView(chkLocalDns);
 
         android.widget.CheckBox chkFakeDns = new android.widget.CheckBox(this);
-        chkFakeDns.setText("Enable fake DNS (Returns fake IP addresses)");
+        chkFakeDns.setText("Enable fake DNS (Domain -> Proxy)");
         chkFakeDns.setChecked(prefs.getBoolean("fakedns", false));
         layout.addView(chkFakeDns);
 
         android.widget.CheckBox chkBypassLan = new android.widget.CheckBox(this);
-        chkBypassLan.setText("Bypass LAN (Exclude Local IPs)");
+        chkBypassLan.setText("Bypass LAN");
         chkBypassLan.setChecked(prefs.getBoolean("bypass_lan", false));
         layout.addView(chkBypassLan);
 
@@ -798,9 +806,9 @@ public class MainActivity extends Activity {
         layout.addView(edtMtu);
 
         new android.app.AlertDialog.Builder(this)
-            .setTitle("Settings")
+            .setTitle("V2Ray Clone Settings")
             .setView(scrollView)
-            .setPositiveButton("SAVE", (dialog, which) -> {
+            .setPositiveButton("SIMPAN", (dialog, which) -> {
                 try {
                     prefs.edit()
                         .putBoolean("sniffing", chkSniffing.isChecked())
@@ -812,12 +820,12 @@ public class MainActivity extends Activity {
                         .putInt("mtu", Integer.parseInt(edtMtu.getText().toString().trim()))
                         .putString("dns", edtDns.getText().toString().trim())
                         .apply();
-                    android.widget.Toast.makeText(this, "Settings Saved! Restart VPN.", android.widget.Toast.LENGTH_LONG).show();
+                    android.widget.Toast.makeText(this, "Disimpan! Matikan dan nyalakan ulang VPN.", android.widget.Toast.LENGTH_LONG).show();
                 } catch (Exception e) {
-                    android.widget.Toast.makeText(this, "Error: Invalid Format", android.widget.Toast.LENGTH_SHORT).show();
+                    android.widget.Toast.makeText(this, "Gagal: Format Salah!", android.widget.Toast.LENGTH_SHORT).show();
                 }
             })
-            .setNegativeButton("CANCEL", null)
+            .setNegativeButton("BATAL", null)
             .show();
     }
 }

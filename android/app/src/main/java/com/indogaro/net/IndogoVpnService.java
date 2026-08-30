@@ -28,6 +28,14 @@ public class IndogoVpnService extends VpnService {
     private long lastTx = 0;
     private Handler speedHandler = new Handler(Looper.getMainLooper());
 
+    private void safeAddRoute(Builder builder, String ip, int prefix) {
+        try { builder.addRoute(ip, prefix); } catch (Exception ignored) {}
+    }
+
+    private void safeAddDns(Builder builder, String dns) {
+        try { builder.addDnsServer(dns); } catch (Exception ignored) {}
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null) {
@@ -50,7 +58,6 @@ public class IndogoVpnService extends VpnService {
         isRunning = true;
         notifManager = getSystemService(NotificationManager.class);
 
-        // 🔴 MEMBACA SELURUH PARAMETER UI CLONE V2RAYNG
         SharedPreferences prefs = getSharedPreferences("IndogoPrefs", MODE_PRIVATE);
         boolean enableSniffing = prefs.getBoolean("sniffing", true);
         boolean enableUdp = prefs.getBoolean("udp", true);
@@ -70,56 +77,59 @@ public class IndogoVpnService extends VpnService {
             Builder builder = new Builder();
             builder.setSession("Indogo-" + cluster);
             builder.setMtu(mtu); 
-            builder.addAddress("10.10.14.2", 24); 
             
-            // Bypass LAN Logic
+            try { builder.addAddress("10.10.14.2", 24); } catch (Exception e) {}
+            
             if (bypassLan) {
-                // Menambahkan rute publik saja, mengecualikan LAN (192.168.x.x, 10.x.x.x)
-                builder.addRoute("1.0.0.0", 8);
-                builder.addRoute("2.0.0.0", 7);
-                builder.addRoute("4.0.0.0", 6);
-                builder.addRoute("8.0.0.0", 7);
-                builder.addRoute("11.0.0.0", 8);
-                builder.addRoute("12.0.0.0", 6);
-                builder.addRoute("16.0.0.0", 4);
-                builder.addRoute("32.0.0.0", 3);
-                builder.addRoute("64.0.0.0", 2);
-                builder.addRoute("128.0.0.0", 3);
-                builder.addRoute("160.0.0.0", 5);
-                builder.addRoute("168.0.0.0", 6);
-                builder.addRoute("172.0.0.0", 12);
-                builder.addRoute("172.32.0.0", 11);
-                builder.addRoute("172.64.0.0", 10);
-                builder.addRoute("172.128.0.0", 9);
-                builder.addRoute("173.0.0.0", 8);
-                builder.addRoute("174.0.0.0", 7);
-                builder.addRoute("176.0.0.0", 4);
-                builder.addRoute("192.0.0.0", 9);
-                builder.addRoute("192.128.0.0", 11);
-                builder.addRoute("192.160.0.0", 13);
-                builder.addRoute("192.169.0.0", 16);
-                builder.addRoute("192.170.0.0", 15);
-                builder.addRoute("192.172.0.0", 14);
-                builder.addRoute("192.176.0.0", 12);
-                builder.addRoute("192.192.0.0", 10);
-                builder.addRoute("193.0.0.0", 8);
-                builder.addRoute("194.0.0.0", 7);
-                builder.addRoute("196.0.0.0", 6);
-                builder.addRoute("200.0.0.0", 5);
-                builder.addRoute("208.0.0.0", 4);
+                safeAddRoute(builder, "1.0.0.0", 8);
+                safeAddRoute(builder, "2.0.0.0", 7);
+                safeAddRoute(builder, "4.0.0.0", 6);
+                safeAddRoute(builder, "8.0.0.0", 7);
+                safeAddRoute(builder, "11.0.0.0", 8);
+                safeAddRoute(builder, "12.0.0.0", 6);
+                safeAddRoute(builder, "16.0.0.0", 4);
+                safeAddRoute(builder, "32.0.0.0", 3);
+                safeAddRoute(builder, "64.0.0.0", 2);
+                safeAddRoute(builder, "128.0.0.0", 3);
+                safeAddRoute(builder, "160.0.0.0", 5);
+                safeAddRoute(builder, "168.0.0.0", 6);
+                safeAddRoute(builder, "172.0.0.0", 12);
+                safeAddRoute(builder, "172.32.0.0", 11);
+                safeAddRoute(builder, "172.64.0.0", 10);
+                safeAddRoute(builder, "172.128.0.0", 9);
+                safeAddRoute(builder, "173.0.0.0", 8);
+                safeAddRoute(builder, "174.0.0.0", 7);
+                safeAddRoute(builder, "176.0.0.0", 4);
+                safeAddRoute(builder, "192.0.0.0", 9);
+                safeAddRoute(builder, "192.128.0.0", 11);
+                safeAddRoute(builder, "192.160.0.0", 13);
+                safeAddRoute(builder, "192.169.0.0", 16);
+                safeAddRoute(builder, "192.170.0.0", 15);
+                safeAddRoute(builder, "192.172.0.0", 14);
+                safeAddRoute(builder, "192.176.0.0", 12);
+                safeAddRoute(builder, "192.192.0.0", 10);
+                safeAddRoute(builder, "193.0.0.0", 8);
+                safeAddRoute(builder, "194.0.0.0", 7);
+                safeAddRoute(builder, "196.0.0.0", 6);
+                safeAddRoute(builder, "200.0.0.0", 5);
+                safeAddRoute(builder, "208.0.0.0", 4);
             } else {
-                builder.addRoute("0.0.0.0", 0); // Route All
+                safeAddRoute(builder, "0.0.0.0", 0);
             }
             
             String[] dnsList = dns.split(",");
             for (String d : dnsList) {
-                builder.addDnsServer(d.trim());
+                String cleanDns = d.trim();
+                if (!cleanDns.isEmpty()) safeAddDns(builder, cleanDns);
             }
-            if (enableLocalDns) { builder.addDnsServer("127.0.0.1"); }
+            if (enableLocalDns) safeAddDns(builder, "127.0.0.1");
 
             if (enableIPv6) {
-                builder.addAddress("fc00::2", 128);
-                builder.addRoute("::", 0); 
+                // 🔴 KOREKSI KERNEL PANIC: Ubah prefix dari 128 menjadi 64
+                try {
+                    builder.addAddress("fc00::2", 64);
+                    builder.addRoute("::", 0); 
+                } catch (Exception e) {}
             }
 
             try { builder.addDisallowedApplication(getPackageName()); } catch (Exception e) {}
@@ -128,7 +138,6 @@ public class IndogoVpnService extends VpnService {
             nativeFd = vpnInterface.getFd();
             if (nativeFd == -1) throw new Exception("Kernel menolak FD.");
 
-            // 🔴 YAML CONFIG BUILDER
             StringBuilder yamlBuilder = new StringBuilder();
             yamlBuilder.append("tunnel:\n  mtu: ").append(mtu).append("\n  ipv4: true\n  ipv6: ").append(enableIPv6).append("\n");
             
